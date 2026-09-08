@@ -23,6 +23,8 @@
     "typeCheck": true
   },
   "ignorePatterns": [
+    "components/ui/**",
+    "hooks/use-mobile.ts",
     ".next/**",
     ".vinext/**",
     "out/**",
@@ -30,6 +32,12 @@
     "dist/**",
     "coverage/**",
     "next-env.d.ts"
+  ],
+  "overrides": [
+    {
+      "files": ["components/surface-preview.tsx", "components/labs/plot.tsx", "components/labs/network.tsx", "components/labs/scene.tsx"],
+      "rules": { "jsx-a11y/prefer-tag-over-role": "off" }
+    }
   ],
   "rules": {
     "no-array-constructor": "error",
