@@ -16,5 +16,7 @@ Handle empty results, unknown lesson identifiers, malformed local storage, unava
 Run applicable package scripts and inspect real results before PR creation. Update this plan with material implementation decisions and docs/release-quality with final verification. Tests must exercise user-relevant behavior or mathematical invariants.
 
 ## Definition of done
-Specified behavior works, no unresolved implementation placeholders remain, relevant checks pass, feature PR is reviewed and merged to main, and any external capability limitation is clearly documented.
 
+## Implementation decisions
+Nine experiments share pure TypeScript math functions. Regression and k-means offer true 3D geometry via a lazy React Three Fiber scene; SVG views and numerical summaries cover unsupported WebGL. Other models use 2D diagrams where those communicate the calculation more directly. Neural and attention experiments explicitly use fixed illustrative weights and expose forward calculations. Timer callbacks stop on convergence, divergence or a bounded step count. Library-provided UI is excluded from authored-code lint, and SVG/canvas image roles receive a narrow rule override.
+Specified behavior works, no unresolved implementation placeholders remain, relevant checks pass, feature PR is reviewed and merged to main, and any external capability limitation is clearly documented.
