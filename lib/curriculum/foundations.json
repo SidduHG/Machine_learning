@@ -1,0 +1,252 @@
+[
+  {
+    "id": "what-is-ml",
+    "module": "foundations",
+    "title": "What is machine learning?",
+    "summary": "Turn a useful question into a learning problem.",
+    "minutes": 18,
+    "intuition": [
+      "Imagine sorting thousands of support messages. You could handwrite rules for every phrase, or show a model examples of messages and their categories. Machine learning fits a mapping from inputs to outputs using data. The mapping is useful only if it behaves well on examples it did not see while fitting.",
+      "A feature is a measurable input; a label is the outcome you want to predict. Parameters are learned from training data. Hyperparameters, such as tree depth, are choices you tune with validation data. Learning is an optimization process, not evidence that a system understands the world."
+    ],
+    "steps": [
+      "State a decision first: which support queue should receive a new message? Identify the unit of prediction as one message at arrival time.",
+      "Collect examples and define the target consistently. Supervised learning uses labels; unsupervised learning searches for structure without target labels; reinforcement learning learns actions through rewards.",
+      "Choose a simple baseline, a metric related to the decision, and a realistic held-out test. Compare improvements against both quality and operational cost."
+    ],
+    "formula": "\\hat{f}=\\arg\\min_{f\\in\\mathcal{F}}\\frac{1}{n}\\sum_{i=1}^{n}\\ell(f(x_i),y_i)",
+    "symbols": "xᵢ is an example, yᵢ its target, f a candidate prediction rule, ℓ a penalty for its error, and n the number of training examples. Minimizing training error selects a rule from a chosen model family; it does not guarantee low future error.",
+    "example": {
+      "title": "Predicting delivery duration",
+      "body": "A shop wants to estimate delivery minutes before dispatch. Distance is available at prediction time; actual arrival time is not.",
+      "steps": [
+        "Input: distance 4 km. Target: delivery duration in minutes.",
+        "A baseline predicts the training average: (20 + 30 + 40) / 3 = 30 minutes.",
+        "A learned rule might predict 5 × distance + 10 = 30 minutes. Check both rules on later deliveries, not on the same three records."
+      ]
+    },
+    "pitfalls": [
+      "A low training error can mean memorization. Always evaluate on unseen examples.",
+      "Prediction is not causation: a correlation alone does not establish that changing a feature changes the outcome."
+    ],
+    "code": "durations = [20, 30, 40]\nbaseline = sum(durations) / len(durations)\nprint('Baseline minutes:', baseline)\nprint('Distance model:', 5 * 4 + 10)",
+    "exercise": "Name two features available before a delivery and one feature that would leak the answer.",
+    "solution": "Distance and dispatch-hour are available beforehand. Recorded arrival timestamp leaks the outcome and must not be an input.",
+    "quiz": {
+      "question": "What best demonstrates that a model learned a useful pattern?",
+      "options": [
+        "Perfect predictions on its training records",
+        "Improvement over a baseline on representative unseen data",
+        "A very large parameter count"
+      ],
+      "answer": 1,
+      "explanation": "Generalization is performance on unseen examples drawn from the intended use case. Parameter count and training fit alone are insufficient."
+    },
+    "sources": [
+      {
+        "title": "Google: Introduction to ML",
+        "url": "https://developers.google.com/machine-learning/intro-to-ml"
+      }
+    ]
+  },
+  {
+    "id": "python",
+    "module": "foundations",
+    "title": "Python for thinking with data",
+    "summary": "Functions, collections, loops, and reproducible calculations.",
+    "minutes": 25,
+    "intuition": [
+      "Python is the glue around most ML systems: it loads records, transforms features, runs experiments, and reports results. Start with small pure functions whose outputs depend only on their inputs. These are easier to test than a notebook whose behavior depends on the order of old cells.",
+      "A list stores a sequence, a dictionary maps names to values, and a function packages a reusable calculation. A loop makes repeated work explicit. In ML, indexing errors and accidental mutation often matter more than clever syntax."
+    ],
+    "steps": [
+      "Represent observations with clear field names and units. Separate raw records from transformed values.",
+      "Write a function for one calculation. Validate edge cases, such as an empty list, before dividing by the number of observations.",
+      "Use assertions on a small known example. In notebooks, restart the runtime and run all cells to verify that results are reproducible."
+    ],
+    "formula": "\\bar{x}=\\frac{1}{n}\\sum_{i=1}^{n}x_i",
+    "symbols": "The mean is the sum of n observations divided by n. In Python, sum(values) / len(values) implements it for a nonempty numeric collection.",
+    "example": {
+      "title": "A reusable average",
+      "body": "Suppose your experiment records losses 0.8, 0.5, and 0.2. A function should report 0.5 and reject empty input deliberately.",
+      "steps": [
+        "Add the values: 0.8 + 0.5 + 0.2 = 1.5.",
+        "Count three observations; divide 1.5 by 3.",
+        "Test a singleton and negative inputs too. Floating-point calculations may need an approximate comparison."
+      ]
+    },
+    "pitfalls": [
+      "Assigning b = a does not copy a list. Modifying b may also modify a.",
+      "Avoid fitting transforms using hidden global variables that change across notebook cells."
+    ],
+    "code": "def mean(values):\n    if not values:\n        raise ValueError('Expected at least one value')\n    return sum(values) / len(values)\n\nlosses = [0.8, 0.5, 0.2]\nprint(mean(losses))\nassert abs(mean(losses) - 0.5) < 1e-9",
+    "exercise": "Extend mean to return a dictionary containing both count and mean. What should empty input do?",
+    "solution": "Return {'count': len(values), 'mean': sum(values)/len(values)} after checking that values is nonempty. Raising ValueError makes the failure explicit.",
+    "quiz": {
+      "question": "Why restart a notebook and run all cells?",
+      "options": [
+        "To make the dataset larger",
+        "To verify it does not depend on hidden execution order",
+        "To automatically improve the model"
+      ],
+      "answer": 1,
+      "explanation": "An experiment should run from its recorded inputs and code, not from unrecorded variables left in memory."
+    },
+    "sources": [
+      {
+        "title": "Python tutorial",
+        "url": "https://docs.python.org/3/tutorial/"
+      }
+    ]
+  },
+  {
+    "id": "arrays",
+    "module": "foundations",
+    "title": "Arrays, shapes, and vectorization",
+    "summary": "Understand the dimensions before you multiply.",
+    "minutes": 24,
+    "intuition": [
+      "An ML dataset often becomes a matrix: rows are examples and columns are features. If you have 100 homes described by area, age, and bedrooms, the feature matrix has shape (100, 3). A weight vector of shape (3,) can turn each row into one prediction.",
+      "Vectorization expresses this calculation as an array operation. Libraries such as NumPy use optimized implementations. Broadcasting aligns dimensions from the right, allowing dimensions to match or equal one; a valid operation can still be semantically wrong if you accidentally mix examples and features."
+    ],
+    "steps": [
+      "Annotate every input shape and axis meaning. Decide whether a batch dimension is present.",
+      "Distinguish elementwise multiplication from matrix multiplication. For matrices, the inner dimensions must agree.",
+      "Check a tiny handwritten result before processing the full dataset. Inspect dtype as well as shape to avoid truncation or overflow."
+    ],
+    "formula": "X\\in\\mathbb{R}^{n\\times d},\\quad w\\in\\mathbb{R}^{d},\\quad \\hat{y}=Xw+b\\in\\mathbb{R}^{n}",
+    "symbols": "n is the number of examples and d the number of features. The scalar bias b is added to each row's dot product. NumPy writes X @ w + b.",
+    "example": {
+      "title": "Two homes, two features",
+      "body": "Use rows [2, 1] and [3, 2], weights [4, 5], and bias 1. The arithmetic below uses ordinary Python so you can see every operation.",
+      "steps": [
+        "First prediction: 2 × 4 + 1 × 5 + 1 = 14.",
+        "Second prediction: 3 × 4 + 2 × 5 + 1 = 23.",
+        "The result has two entries, one per home. It does not have one entry per feature."
+      ]
+    },
+    "pitfalls": [
+      "NumPy's * is elementwise; @ is matrix multiplication.",
+      "A shape (n, 1) minus (n,) can broadcast to (n, n). Check residual shapes before computing loss."
+    ],
+    "code": "X = [[2, 1], [3, 2]]\nw = [4, 5]\nb = 1\npredictions = [sum(a * b for a, b in zip(row, w)) + b for row in X]\nprint(predictions)\nassert predictions == [14, 23]",
+    "exercise": "Add the row [1, 4]. Predict its output and the resulting output shape.",
+    "solution": "1 × 4 + 4 × 5 + 1 = 25. The output contains three values; its shape would be (3,) in NumPy.",
+    "quiz": {
+      "question": "What shape does (10, 3) @ (3, 2) produce?",
+      "options": [
+        "(10, 2)",
+        "(3, 3)",
+        "(10, 3, 2)"
+      ],
+      "answer": 0,
+      "explanation": "The shared inner dimension 3 is summed over, leaving the outer dimensions 10 and 2."
+    },
+    "sources": [
+      {
+        "title": "NumPy array fundamentals",
+        "url": "https://numpy.org/doc/stable/user/basics.html"
+      }
+    ]
+  },
+  {
+    "id": "dataframes",
+    "module": "foundations",
+    "title": "Explore data before modeling",
+    "summary": "Inspect missingness, distributions, groups, and suspicious records.",
+    "minutes": 28,
+    "intuition": [
+      "A table is a measurement process, not an unquestionable description of reality. Every row was collected in some context. Exploratory analysis asks what was measured, which records are absent, and whether the data supports the intended decision.",
+      "Inspect column types, counts, quantiles, and relationships before fitting a model. In pandas, groupby summarizes subpopulations, merge joins tables, and isna reveals missingness. A dramatic pattern may be a broken sensor, a join duplication, or a change in collection policy."
+    ],
+    "steps": [
+      "Define the meaning and unique key of a row. Count rows before and after joins to detect accidental duplication.",
+      "Summarize numeric distributions and categorical frequencies. Compare groups and time periods instead of relying only on an overall mean.",
+      "Document missing values and investigate their mechanism. Missing data can encode an operational process; silently dropping it can change who the model serves."
+    ],
+    "formula": "r_{\\text{missing}}=\\frac{\\#\\{\\text{missing entries}\\}}{\\#\\{\\text{all entries}\\}}",
+    "symbols": "The missingness rate is a diagnostic, not an imputation method. Compute it separately for relevant fields and groups; equal overall rates can conceal unequal subgroups.",
+    "example": {
+      "title": "A misleading delivery average",
+      "body": "Delivery times [20, 22, missing, 90] have one missing entry and an extreme value. Reporting only their average hides both facts.",
+      "steps": [
+        "Missingness is 1 / 4 = 25%.",
+        "The observed mean is (20 + 22 + 90) / 3 = 44 minutes.",
+        "The observed median is 22. Investigate the 90-minute record and why another duration is missing; do not delete them solely because they are inconvenient."
+      ]
+    },
+    "pitfalls": [
+      "A many-to-many join can inflate the apparent sample size.",
+      "Inspect target relationships only within training data when those findings guide feature selection."
+    ],
+    "code": "from statistics import mean, median\nvalues = [20, 22, None, 90]\nobserved = [x for x in values if x is not None]\nprint('Missing rate:', 1 - len(observed) / len(values))\nprint('Mean:', mean(observed), 'Median:', median(observed))",
+    "exercise": "If all missing records are failed deliveries, why is averaging only observed durations misleading?",
+    "solution": "The observed subset excludes failures. It estimates completion time among recorded successes, not the full customer experience. Report failure rate separately and define the target carefully.",
+    "quiz": {
+      "question": "A join changes 1,000 unique orders into 1,800 rows. First action?",
+      "options": [
+        "Train immediately with more data",
+        "Check join keys and multiplicity",
+        "Randomly discard 800 rows"
+      ],
+      "answer": 1,
+      "explanation": "Additional rows may be duplicated observations, not independent examples."
+    },
+    "sources": [
+      {
+        "title": "pandas introductory tutorials",
+        "url": "https://pandas.pydata.org/docs/getting_started/intro_tutorials/index.html"
+      }
+    ]
+  },
+  {
+    "id": "data-preparation",
+    "module": "foundations",
+    "title": "Prepare features without leakage",
+    "summary": "Split first, fit transforms on training data, and reuse them.",
+    "minutes": 30,
+    "intuition": [
+      "A model cannot use information that will not exist when it makes a prediction. Leakage occurs when future or held-out information enters training, preprocessing, model selection, or feature construction. It often creates spectacular offline scores followed by disappointing deployment.",
+      "Preprocessing learns too. A mean used for imputation, a scale used for standardization, and a vocabulary learned from text all depend on data. Fit these using the training partition, then apply the learned transformation unchanged to validation, test, and production inputs."
+    ],
+    "steps": [
+      "Choose a split matching deployment: random for approximately independent records, grouped when users repeat, chronological when predicting the future.",
+      "Fit imputers, encoders, scalers, and feature selection inside the training pipeline. During cross-validation, refit them within each fold.",
+      "Handle unknown categories and missing values explicitly. Persist the preprocessing pipeline together with the fitted estimator."
+    ],
+    "formula": "z=\\frac{x-\\mu_{\\text{train}}}{\\sigma_{\\text{train}}}",
+    "symbols": "μtrain and σtrain are learned only from training features. A zero-variance feature needs a defined policy, such as mapping to zero; division by zero is invalid.",
+    "example": {
+      "title": "An unusually large test value",
+      "body": "Training values are [1, 2, 3]; a future value is 10. The training mean is 2 and the population standard deviation is √(2/3).",
+      "steps": [
+        "Fit statistics from [1, 2, 3] only.",
+        "Transform 10 to (10 − 2) / √(2/3) ≈ 9.80.",
+        "A large standardized value is useful evidence of a different input. Recomputing the mean with 10 would hide part of that difference and leak future information."
+      ]
+    },
+    "pitfalls": [
+      "Scaling all records before splitting leaks distribution information.",
+      "Random splits across repeated customers can exaggerate generalization to new customers."
+    ],
+    "code": "from math import sqrt\ntrain = [1, 2, 3]\nmu = sum(train) / len(train)\nsigma = sqrt(sum((x - mu)**2 for x in train) / len(train))\nprint('Future standardized value:', (10 - mu) / sigma)",
+    "exercise": "You predict next month's demand. Explain why a random row split can be optimistic.",
+    "solution": "It lets training include future periods and can mix near-duplicate seasonal or temporal observations. Validate by training on earlier periods and predicting later ones.",
+    "quiz": {
+      "question": "Where should an imputer be fitted during cross-validation?",
+      "options": [
+        "Once on the entire dataset",
+        "Separately on each fold's training partition",
+        "On the final test partition"
+      ],
+      "answer": 1,
+      "explanation": "Each validation fold must remain unseen by all fitted preprocessing steps."
+    },
+    "sources": [
+      {
+        "title": "scikit-learn: Common pitfalls",
+        "url": "https://scikit-learn.org/stable/common_pitfalls.html"
+      }
+    ]
+  }
+]

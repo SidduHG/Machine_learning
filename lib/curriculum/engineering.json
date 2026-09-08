@@ -1,0 +1,250 @@
+[
+  {
+    "id": "reproducibility",
+    "module": "engineering",
+    "title": "Reproducible experiments and data pipelines",
+    "summary": "Make your result explainable, repeatable, and reviewable.",
+    "minutes": 30,
+    "intuition": [
+      "An experiment is more than a model file. Its result depends on source data, preprocessing, code, dependencies, seeds, and the evaluation protocol. Reproducibility means another run can recover the same procedure and explain material differences.",
+      "A pipeline separates extraction, validation, transformation, training, and evaluation. Schema checks catch broken inputs early. Experiment tracking records configurations and artifacts so a promising result can be traced back to its cause. Prefer a small understandable pipeline over a notebook full of hidden state."
+    ],
+    "steps": [
+      "Version code and a dataset manifest containing source, snapshot, schema, and permitted use. Keep private data out of public repositories.",
+      "Record dependency versions, seeds, split IDs, configuration, and metrics for each run.",
+      "Package preprocessing and model together. Rerun from a clean environment and compare results within documented tolerances."
+    ],
+    "formula": "\\text{run identity}=H(\\text{code version},\\text{data version},\\text{configuration})",
+    "symbols": "H denotes a stable fingerprint over canonical metadata. A hash identifies a recorded input state; it does not certify that data is correct, licensed, or free of leakage.",
+    "example": {
+      "title": "Fingerprint a configuration",
+      "body": "Two people train the same estimator but one scales features and the other does not. A model name alone cannot distinguish the experiments.",
+      "steps": [
+        "Record algorithm, scaling flag, seed, split version, and data snapshot.",
+        "Serialize with sorted keys so equivalent dictionaries produce the same fingerprint.",
+        "Include code and data identifiers in the manifest. Store evaluation outputs alongside it."
+      ]
+    },
+    "pitfalls": [
+      "A random seed cannot recover an unrecorded dataset revision.",
+      "Logging complete user records can create unnecessary privacy exposure."
+    ],
+    "code": "import json, hashlib\nconfig = {'algorithm':'ridge','alpha':1.0,'scale':True,'seed':42,'data':'toy-v1'}\ncanonical = json.dumps(config,sort_keys=True)\nprint('Run fingerprint:',hashlib.sha256(canonical.encode()).hexdigest()[:12])",
+    "exercise": "List five artifacts needed to reproduce a model evaluation.",
+    "solution": "Code commit, dataset snapshot and split IDs, dependency environment, full preprocessing/model configuration, and evaluation script with the chosen metric and threshold.",
+    "quiz": {
+      "question": "Which is enough to reproduce an ML result?",
+      "options": [
+        "Only the model's display name",
+        "Code, data, configuration, environment, and evaluation procedure",
+        "Only a screenshot of accuracy"
+      ],
+      "answer": 1,
+      "explanation": "Every material input to the experiment needs to be recoverable."
+    },
+    "sources": [
+      {
+        "title": "scikit-learn: Model persistence",
+        "url": "https://scikit-learn.org/stable/model_persistence.html"
+      }
+    ]
+  },
+  {
+    "id": "deployment",
+    "module": "engineering",
+    "title": "Serve a model as a reliable product",
+    "summary": "Contracts, validation, latency, versioning, and safe rollout.",
+    "minutes": 35,
+    "intuition": [
+      "A deployed model is part of a software system. It receives imperfect inputs, consumes resources, and influences decisions. The serving interface must define accepted fields, units, missing-value behavior, response format, and failure handling.",
+      "Batch inference computes many predictions on a schedule; online inference responds to requests. Choose based on freshness and latency needs. Package the exact fitted preprocessing with the estimator, validate inputs before inference, and keep model versions identifiable. A staged rollout and rollback path make mistakes recoverable."
+    ],
+    "steps": [
+      "Define and validate the request/response contract. Reject nonfinite numeric values and unsupported categories according to policy.",
+      "Load the versioned model once per process where appropriate, apply the same preprocessing, and return predictions with model-version metadata.",
+      "Measure latency distributions, throughput, and resource use. Test a shadow or canary rollout before broad traffic, and retain a known-good version for rollback."
+    ],
+    "formula": "\\text{total latency}=t_{queue}+t_{preprocess}+t_{inference}+t_{postprocess}+t_{network}",
+    "symbols": "End-to-end latency includes more than model execution. Percentiles such as p95 describe the tail; an average can conceal slow requests. Batching can improve throughput while increasing waiting time.",
+    "example": {
+      "title": "A strict numeric prediction contract",
+      "body": "A toy endpoint accepts a finite distance in kilometers between 0 and 100 and predicts 2×distance+1.",
+      "steps": [
+        "Validate the input before applying the model; 'five', NaN, and −2 should be rejected.",
+        "For distance 4, return 9 minutes and a stable model version.",
+        "In a real service, log aggregate errors and latency without unnecessarily retaining private request content."
+      ]
+    },
+    "pitfalls": [
+      "Loading an untrusted pickle can execute code; accept model artifacts only from trusted controlled sources.",
+      "Training-serving preprocessing differences can silently destroy model quality."
+    ],
+    "code": "import math\ndef predict(distance):\n    if isinstance(distance,bool) or not isinstance(distance,(int,float)) or not math.isfinite(distance) or not 0<=distance<=100:\n        raise ValueError('Distance must be a finite number from 0 to 100 km')\n    return {'minutes':2*distance+1,'model_version':'toy-v1'}\nprint(predict(4))",
+    "exercise": "Why include a model version in predictions or internal logs?",
+    "solution": "It lets you trace changed behavior, compare rollout cohorts, investigate incidents, and roll back the model associated with a regression.",
+    "quiz": {
+      "question": "What must travel with a fitted estimator?",
+      "options": [
+        "Its exact fitted preprocessing",
+        "The final test labels in every request",
+        "Only its marketing name"
+      ],
+      "answer": 0,
+      "explanation": "The serving input representation must match what the estimator saw in training."
+    },
+    "sources": [
+      {
+        "title": "Google: Production ML systems",
+        "url": "https://developers.google.com/machine-learning/crash-course/production-ml-systems"
+      }
+    ]
+  },
+  {
+    "id": "monitoring",
+    "module": "engineering",
+    "title": "Monitoring, drift, and feedback loops",
+    "summary": "Keep learning after deployment without retraining blindly.",
+    "minutes": 35,
+    "intuition": [
+      "Production data changes. Covariate shift changes the input distribution; label shift changes class prevalence under specific assumptions; concept drift changes the relationship between inputs and targets. A drift alert is evidence that something changed, not proof that model quality fell.",
+      "Monitor service health, data quality, prediction distributions, and eventual outcomes. Ground-truth labels may arrive late or only for selected decisions, creating evaluation bias. The system can also change the data it later learns from—for example, recommendations influence what users see and click."
+    ],
+    "steps": [
+      "Define operational metrics and model-quality metrics separately. Track missingness, invalid inputs, latency, and outcomes by relevant slices.",
+      "Compare recent data with a versioned reference using sensible summaries or statistical distances. Account for sample size and seasonality.",
+      "Investigate meaningful changes, gather representative labels, and test a candidate update against the incumbent. Retrain only through a reproducible, validated release process."
+    ],
+    "formula": "\\Delta_\\mu=\\mu_{recent}-\\mu_{reference},\\qquad TV(p,q)=\\frac12\\sum_k|p_k-q_k|",
+    "symbols": "The mean shift is a simple diagnostic; total variation compares categorical distributions. Neither alone establishes a causal reason for change or a loss in predictive accuracy.",
+    "example": {
+      "title": "Changing request mix",
+      "body": "Reference requests are 80% desktop and 20% mobile. Recent requests are 50% desktop and 50% mobile.",
+      "steps": [
+        "Absolute probability differences are 0.3 and 0.3.",
+        "Total variation is (0.3+0.3)/2=0.3.",
+        "Check quality and latency by device. The distribution changed, but the model may still work well on both groups."
+      ]
+    },
+    "pitfalls": [
+      "Automatically retraining on every drift alert can encode corrupted data or feedback bias.",
+      "Only observing outcomes for approved or displayed cases makes naive quality estimates selective."
+    ],
+    "code": "reference = [.8,.2]\nrecent = [.5,.5]\ntv = .5*sum(abs(a-b) for a,b in zip(reference,recent))\nprint('Total variation:',tv)",
+    "exercise": "An input distribution changes but labeled accuracy is stable. What should you do?",
+    "solution": "Investigate the change, verify representative labels and subgroup performance, and monitor. Do not assume retraining is necessary solely from the drift statistic.",
+    "quiz": {
+      "question": "Does detected input drift always mean degraded accuracy?",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "answer": 1,
+      "explanation": "A model may be robust to the changed mix. Measure outcomes and relevant subgroups."
+    },
+    "sources": [
+      {
+        "title": "Google: Monitoring pipelines",
+        "url": "https://developers.google.com/machine-learning/crash-course/production-ml-systems/monitoring"
+      }
+    ]
+  },
+  {
+    "id": "responsible-ml",
+    "module": "engineering",
+    "title": "Responsible ML and human oversight",
+    "summary": "Design for the people affected by a model.",
+    "minutes": 35,
+    "intuition": [
+      "Responsible ML begins with the decision and the people it affects. A technically accurate model may still be inappropriate if the target is poorly defined, data was collected without suitable permission, or users cannot contest consequential mistakes.",
+      "Fairness has multiple definitions that can conflict. Compare error rates and data coverage across relevant groups, examine the costs of mistakes, and involve people who understand the setting. Interpretability methods describe aspects of model behavior; they do not automatically establish causality or prove fairness."
+    ],
+    "steps": [
+      "Document intended use, prohibited or unsupported uses, stakeholders, data provenance, and known limitations.",
+      "Evaluate aggregate and subgroup behavior with adequate sample sizes. Investigate proxy features, missing populations, and disproportionate error costs.",
+      "Provide appropriate human review, appeal or correction paths, and a way to stop or roll back the system. Minimize retained personal data and protect access to it."
+    ],
+    "formula": "TPR_g=\\frac{TP_g}{TP_g+FN_g},\\qquad FPR_g=\\frac{FP_g}{FP_g+TN_g}",
+    "symbols": "Group-specific true-positive and false-positive rates reveal different error burdens. Equalizing one metric need not equalize another, especially when base rates differ; the appropriate criterion depends on context.",
+    "example": {
+      "title": "The same overall score hides different recall",
+      "body": "For group A, TP=80 and FN=20. For group B, TP=40 and FN=60.",
+      "steps": [
+        "Recall A is 0.8; recall B is 0.4.",
+        "An overall aggregate can conceal this gap.",
+        "Investigate sampling, labels, features, thresholds, and the practical consequences. Small or unrepresentative group samples also require uncertainty reporting."
+      ]
+    },
+    "pitfalls": [
+      "Removing a sensitive feature does not remove all proxies for it.",
+      "A feature-attribution plot is not a causal explanation or an ethical approval."
+    ],
+    "code": "groups = {'A':{'tp':80,'fn':20},'B':{'tp':40,'fn':60}}\nfor name,g in groups.items():\n    print(name,'Recall:',g['tp']/(g['tp']+g['fn']))",
+    "exercise": "Write three questions for a model card before releasing a document classifier.",
+    "solution": "What documents and languages are supported? Which errors matter most and to whom? What data, evaluation evidence, human review, and correction paths support the intended use?",
+    "quiz": {
+      "question": "Removing a protected attribute guarantees a fair model.",
+      "options": [
+        "True",
+        "False"
+      ],
+      "answer": 1,
+      "explanation": "Other inputs may act as proxies, and inequity can enter through labels, sampling, objectives, or deployment decisions."
+    },
+    "sources": [
+      {
+        "title": "Model Cards for Model Reporting",
+        "url": "https://arxiv.org/abs/1810.03993"
+      }
+    ]
+  },
+  {
+    "id": "portfolio",
+    "module": "engineering",
+    "title": "Build an AI engineering portfolio",
+    "summary": "Show a complete decision process, not only a leaderboard score.",
+    "minutes": 30,
+    "intuition": [
+      "A strong project demonstrates how you frame a problem, inspect data, build a baseline, evaluate honestly, and deliver a usable result. A modest model with clear evidence is more informative than an elaborate notebook with unexplained metrics.",
+      "Choose projects with recoverable datasets and a scope you can finish. The portfolio should expose tradeoffs: why the split matches use, which errors remain, what the system costs, and how another person can run it. Include a small interface or inference contract only after the evaluation makes sense."
+    ],
+    "steps": [
+      "Write a one-page problem brief with users, target, input availability, success metric, and a non-ML baseline.",
+      "Create a reproducible training/evaluation pipeline, analyze errors, and document two or three justified experiments.",
+      "Package a demo, tests, model/data card, and concise report. Add deployment and monitoring plans, clearly separating measured results from proposed future work."
+    ],
+    "formula": "\\text{relative error reduction}=\\frac{E_{baseline}-E_{model}}{E_{baseline}}\\quad(E_{baseline}>0)",
+    "symbols": "E is a declared lower-is-better error measure on the same evaluation set. Improvement percentages do not replace absolute errors, confidence intervals, runtime, or a meaningful baseline.",
+    "example": {
+      "title": "An honest result statement",
+      "body": "A delivery-duration baseline has held-out MAE 10 minutes. A model has MAE 8 minutes on the same records.",
+      "steps": [
+        "Absolute improvement is 2 minutes.",
+        "Relative error reduction is (10−8)/10=20%.",
+        "Report the split dates, sample size, subgroup errors, and serving latency. Do not describe this as '80% accurate'—MAE is not classification accuracy."
+      ]
+    },
+    "pitfalls": [
+      "Using an external notebook without attribution obscures what you actually built.",
+      "A demo that silently substitutes canned results for inference undermines the project's evidence."
+    ],
+    "code": "baseline_mae, model_mae = 10,8\nreduction = (baseline_mae-model_mae)/baseline_mae\nprint('Absolute improvement:',baseline_mae-model_mae,'minutes')\nprint('Relative error reduction:',f'{reduction:.0%}')",
+    "exercise": "Choose one project from the practice page and write its baseline, split strategy, and acceptance criteria before coding.",
+    "solution": "For a tabular regression project: predict the training mean; split by time if the goal is future prediction; accept a documented held-out MAE improvement with valid inputs, reproducible training, and an error analysis.",
+    "quiz": {
+      "question": "Which project claim is most useful?",
+      "options": [
+        "My model uses the most layers",
+        "My model reduces held-out MAE from 10 to 8 minutes under a documented split",
+        "My model never makes mistakes"
+      ],
+      "answer": 1,
+      "explanation": "It identifies the baseline, metric, improvement, and evaluation context."
+    },
+    "sources": [
+      {
+        "title": "Google: Problem framing",
+        "url": "https://developers.google.com/machine-learning/problem-framing"
+      }
+    ]
+  }
+]

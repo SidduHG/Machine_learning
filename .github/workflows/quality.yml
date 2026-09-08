@@ -16,4 +16,8 @@ jobs:
       - run: npm ci
       - run: npx tsc --noEmit
       - run: npm run test --if-present
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python tests/verify_examples.py
       - run: npm run build

@@ -1,0 +1,254 @@
+[
+  {
+    "id": "linear-algebra",
+    "module": "mathematics",
+    "title": "Vectors and linear transformations",
+    "summary": "Dot products, lengths, projections, and matrices as maps.",
+    "minutes": 35,
+    "intuition": [
+      "A vector is an ordered set of numbers that can represent a point, a direction, or a collection of features. Its meaning comes from its coordinates and units. Adding vectors combines directions; multiplying by a scalar stretches or reverses them.",
+      "A matrix transforms vectors. A neural layer starts with such a transformation: it mixes input coordinates into new features. The dot product measures alignment after weighting coordinates. Orthogonal vectors have zero dot product, a fact that makes projections and least-squares geometry work."
+    ],
+    "steps": [
+      "Compute a dot product by multiplying corresponding coordinates and summing. Keep feature scales comparable when interpreting alignment.",
+      "Compute a vector's Euclidean length as the square root of the sum of squared coordinates.",
+      "Project onto a unit direction by taking its dot product with the vector. Multiply that scalar by the direction to get the projected vector. Independent basis directions let you describe a space without redundant coordinates."
+    ],
+    "formula": "a^Tb=\\sum_j a_jb_j=\\|a\\|\\|b\\|\\cos\\theta,\\qquad \\operatorname{proj}_u(x)=(u^Tx)u\\quad(\\|u\\|=1)",
+    "symbols": "aᵀb is the dot product and θ the angle. A projection retains the part of x aligned with a unit vector u. Eigenvectors are directions a square matrix scales without rotating; SVD generalizes useful directions to rectangular matrices.",
+    "example": {
+      "title": "Project a displacement",
+      "body": "Let x = [3, 4] and u = [1, 0]. Think of x as a movement on a map and u as the east direction.",
+      "steps": [
+        "The length of x is √(9 + 16) = 5.",
+        "The scalar projection x · u is 3.",
+        "The projected vector is [3, 0], leaving residual [0, 4], orthogonal to u."
+      ]
+    },
+    "pitfalls": [
+      "A dot product is affected by vector magnitude; cosine similarity divides out lengths.",
+      "Linearly dependent columns make ordinary least-squares coefficients non-unique. Regularization or an SVD-based solver can help."
+    ],
+    "code": "from math import sqrt\nx, u = [3, 4], [1, 0]\ndot = sum(a*b for a,b in zip(x,u))\nprint('Length:', sqrt(sum(v*v for v in x)))\nprint('Projection:', [dot*v for v in u])",
+    "exercise": "Project [3,4] onto the unit direction [0.6,0.8].",
+    "solution": "The scalar is 3×0.6 + 4×0.8 = 5. Multiplying by the unit direction returns [3,4], because x already lies on that direction.",
+    "quiz": {
+      "question": "The dot product of two nonzero perpendicular vectors is…",
+      "options": [
+        "1",
+        "Their lengths added",
+        "0"
+      ],
+      "answer": 2,
+      "explanation": "cos(90°)=0, so the dot product vanishes."
+    },
+    "sources": [
+      {
+        "title": "D2L: Linear algebra",
+        "url": "https://d2l.ai/chapter_preliminaries/linear-algebra.html"
+      }
+    ],
+    "lab": "pca"
+  },
+  {
+    "id": "calculus",
+    "module": "mathematics",
+    "title": "Derivatives and the chain rule",
+    "summary": "Measure sensitivity, then compose it across a model.",
+    "minutes": 35,
+    "intuition": [
+      "A derivative tells you how quickly an output changes when an input moves a tiny amount. If a loss grows as you increase a weight, a positive derivative says that reducing that weight should lower the loss locally.",
+      "For many weights, collect the partial derivatives into a gradient vector. Each partial derivative changes one coordinate while holding the others fixed. The gradient points in the direction of steepest local increase under Euclidean distance; optimizers usually move against it. A derivative is local information, not a promise that a large step will help."
+    ],
+    "steps": [
+      "Start with a scalar function and derive its slope. For f(w)=w², a small change Δw changes f by approximately 2wΔw.",
+      "Break a composition into intermediate variables. Multiply local derivatives using the chain rule.",
+      "For a branched computation graph, sum contributions from every path. This is the essential bookkeeping behind backpropagation."
+    ],
+    "formula": "\\frac{dL}{dw}=\\frac{dL}{dz}\\frac{dz}{dw},\\qquad \\frac{\\partial L}{\\partial w_j}\\approx\\frac{L(w+\\epsilon e_j)-L(w-\\epsilon e_j)}{2\\epsilon}",
+    "symbols": "z is an intermediate value. The centered finite difference uses a small ε and coordinate basis vector eⱼ to check a derivative numerically. Extremely small ε can amplify floating-point error.",
+    "example": {
+      "title": "A one-weight prediction",
+      "body": "Let z = 3w, target y = 2, and L = (z − 2)². Evaluate at w = 1.",
+      "steps": [
+        "Forward: z = 3 and L = 1.",
+        "Local derivatives: dL/dz = 2(z − 2) = 2; dz/dw = 3.",
+        "Chain rule: dL/dw = 6. A step of size 0.01 gives w = 0.94 and L = 0.6724."
+      ]
+    },
+    "pitfalls": [
+      "Forgetting the inner derivative breaks gradients.",
+      "At nondifferentiable points such as ReLU at zero, libraries choose a defined subgradient convention."
+    ],
+    "code": "def loss(w):\n    return (3*w - 2)**2\nw, eps = 1.0, 1e-5\nanalytic = 6*(3*w - 2)\nnumeric = (loss(w+eps) - loss(w-eps))/(2*eps)\nprint('Analytic:', analytic, 'Numeric:', numeric)",
+    "exercise": "Compute d/dw (2w + 1)² at w = 2.",
+    "solution": "The outer derivative is 2(2w+1) and the inner derivative is 2. At w=2 their product is 20.",
+    "quiz": {
+      "question": "Why can a very large negative-gradient step increase loss?",
+      "options": [
+        "A derivative describes local behavior",
+        "The gradient is always random",
+        "Loss cannot decrease"
+      ],
+      "answer": 0,
+      "explanation": "The function can curve or change slope over a large step. Local linear approximations then become inaccurate."
+    },
+    "sources": [
+      {
+        "title": "D2L: Calculus",
+        "url": "https://d2l.ai/chapter_preliminaries/calculus.html"
+      }
+    ],
+    "lab": "gradient-descent"
+  },
+  {
+    "id": "probability",
+    "module": "mathematics",
+    "title": "Probability and Bayes’ rule",
+    "summary": "Reason about uncertainty without ignoring the base rate.",
+    "minutes": 30,
+    "intuition": [
+      "Probability quantifies uncertainty within a model of possible outcomes. A conditional probability changes the reference population: P(A|B) asks how often A occurs among cases where B is true. It is generally different from P(B|A).",
+      "Bayes' rule reverses a conditional using a prior and a likelihood. In classification, the prior captures how common a class is and the likelihood describes how compatible the observed features are with that class. A striking signal can still yield a modest posterior when the event is rare."
+    ],
+    "steps": [
+      "Define events and the population before computing probabilities. Identify the prior probability of the event.",
+      "Specify the likelihood of the evidence under both the event and its complement.",
+      "Multiply prior by likelihood for each case, then normalize by the total evidence probability. Check that posterior probabilities sum to one."
+    ],
+    "formula": "P(A\\mid B)=\\frac{P(B\\mid A)P(A)}{P(B\\mid A)P(A)+P(B\\mid \\neg A)P(\\neg A)}",
+    "symbols": "A is an event such as a defective item and B is a sensor alert. P(A) is its prior, P(B|A) the true-positive rate, and P(B|¬A) the false-positive rate.",
+    "example": {
+      "title": "A factory sensor",
+      "body": "One percent of items are defective. A sensor flags 90% of defective items and 5% of good items. What fraction of flagged items are defective?",
+      "steps": [
+        "Among 10,000 items, expect 100 defects and 9,900 good items.",
+        "Expect 90 true alerts and 495 false alerts.",
+        "The posterior is 90 / (90 + 495) ≈ 15.38%, despite a 90% sensitivity."
+      ]
+    },
+    "pitfalls": [
+      "Confusing sensitivity with the probability that an alert is correct ignores prevalence.",
+      "Independence and conditional independence are different assumptions."
+    ],
+    "code": "prior = 0.01\nsensitivity = 0.90\nfalse_positive_rate = 0.05\nposterior = sensitivity*prior / (sensitivity*prior + false_positive_rate*(1-prior))\nprint('P(defect | alert):', round(posterior, 4))",
+    "exercise": "Keep the sensor unchanged but increase defect prevalence to 10%. Compute the new posterior.",
+    "solution": "0.9×0.1 / (0.9×0.1 + 0.05×0.9) = 2/3 ≈ 66.67%. The usefulness of the same alert depends on the base rate.",
+    "quiz": {
+      "question": "Does P(A|B) generally equal P(B|A)?",
+      "options": [
+        "Always",
+        "No; the conditioning populations differ",
+        "Only if A is rare"
+      ],
+      "answer": 1,
+      "explanation": "Bayes' rule relates them using the marginal probabilities. They are not interchangeable."
+    },
+    "sources": [
+      {
+        "title": "D2L: Probability and statistics",
+        "url": "https://d2l.ai/chapter_preliminaries/probability.html"
+      }
+    ]
+  },
+  {
+    "id": "statistics",
+    "module": "mathematics",
+    "title": "Statistics, sampling, and uncertainty",
+    "summary": "A score is an estimate, not a property carved in stone.",
+    "minutes": 32,
+    "intuition": [
+      "A dataset is usually a sample from a larger process. Statistics uses that sample to estimate quantities such as average error and to describe uncertainty. A model scoring 84% on 50 examples has much less precise evidence than one evaluated on 50,000 independent examples.",
+      "The sample mean estimates a population mean; sample variance describes spread. Standard error describes variability of an estimator across hypothetical samples. Confidence intervals depend on assumptions about sampling and the method used. Repeatedly inspecting the test set while tuning invalidates its role as a final independent check."
+    ],
+    "steps": [
+      "Identify the independent unit of sampling. If multiple rows come from one person, resample or split by person rather than pretending rows are independent.",
+      "Report sample size and variability alongside an average. Bootstrap intervals repeatedly resample the observed units with replacement.",
+      "Compare models on the same held-out observations and analyze paired differences. Distinguish practical effect size from a significance threshold."
+    ],
+    "formula": "s^2=\\frac{1}{n-1}\\sum_i(x_i-\\bar{x})^2,\\qquad SE(\\bar{x})\\approx\\frac{s}{\\sqrt{n}}",
+    "symbols": "s² is the sample variance, using n−1 because the mean was estimated from the same sample. The standard-error expression assumes approximately independent observations with finite variance.",
+    "example": {
+      "title": "Mean latency from four requests",
+      "body": "Latencies [10,12,14,16] milliseconds have mean 13. This small sample illustrates the arithmetic, not a reliable production latency study.",
+      "steps": [
+        "Squared deviations sum to 9 + 1 + 1 + 9 = 20.",
+        "Sample variance is 20/3 ≈ 6.667, and sample standard deviation is 2.582.",
+        "The standard error of the mean is 2.582/√4 ≈ 1.291 ms. More independent observations reduce this uncertainty."
+      ]
+    },
+    "pitfalls": [
+      "A 95% frequentist confidence interval does not assign a 95% probability to the fixed parameter after observing the interval.",
+      "Distribution shift is not fixed by collecting more data from the wrong population."
+    ],
+    "code": "from statistics import mean, variance, stdev\nfrom math import sqrt\nx = [10, 12, 14, 16]\nprint('Mean:', mean(x))\nprint('Sample variance:', variance(x))\nprint('Standard error:', stdev(x)/sqrt(len(x)))",
+    "exercise": "Under the same assumptions, how many times more observations approximately halves the standard error?",
+    "solution": "Four times as many, because standard error scales with 1/√n.",
+    "quiz": {
+      "question": "Four rows from each customer should usually be bootstrapped…",
+      "options": [
+        "As independent unrelated rows",
+        "At the customer level when within-customer correlation matters",
+        "Only after sorting by target"
+      ],
+      "answer": 1,
+      "explanation": "Resampling should preserve the dependence structure of the independent units."
+    },
+    "sources": [
+      {
+        "title": "NIST: Confidence limits for a mean",
+        "url": "https://www.itl.nist.gov/div898/handbook/eda/section3/eda352.htm"
+      }
+    ]
+  },
+  {
+    "id": "information-theory",
+    "module": "mathematics",
+    "title": "Entropy and cross-entropy",
+    "summary": "Measure uncertainty and the cost of confident mistakes.",
+    "minutes": 28,
+    "intuition": [
+      "Entropy measures the average surprise in a probability distribution. A fair coin has more uncertainty than a coin that almost always lands heads. If an event has small probability, observing it carries high surprise: negative log probability.",
+      "Cross-entropy evaluates probabilities from a model against a target distribution. For a labeled example, it penalizes the probability assigned to the true class. A wrong prediction with extreme confidence is penalized more heavily than an uncertain one. This is why classification models often learn with log loss rather than accuracy."
+    ],
+    "steps": [
+      "Convert scores to valid probabilities. For multiclass scores, use numerically stable softmax by subtracting the maximum score before exponentiating.",
+      "Read the model probability of the actual class and take its negative logarithm.",
+      "Average over examples. Use natural logarithms for nats or base two for bits, consistently. In practice, stable logits-based loss functions avoid log(0)."
+    ],
+    "formula": "H(p)=-\\sum_k p_k\\log p_k,\\qquad H(p,q)=-\\sum_k p_k\\log q_k=H(p)+D_{KL}(p\\|q)",
+    "symbols": "p is the true or target distribution and q the model distribution. KL divergence is nonnegative but generally asymmetric. For a one-hot target, cross-entropy becomes −log qtrue.",
+    "example": {
+      "title": "Two predictions for the correct class",
+      "body": "For the same labeled image, model A assigns the correct class 0.8 probability; model B assigns 0.1.",
+      "steps": [
+        "Model A loss is −ln(0.8) ≈ 0.223.",
+        "Model B loss is −ln(0.1) ≈ 2.303.",
+        "The confidently wrong model receives a much larger penalty even though accuracy records only correct or incorrect."
+      ]
+    },
+    "pitfalls": [
+      "Accuracy discards the confidence information present in probabilities.",
+      "A low cross-entropy on training data does not prove that probabilities are calibrated on future data."
+    ],
+    "code": "from math import log\nfor p in [0.8, 0.5, 0.1]:\n    print('True-class probability:', p, 'Loss:', round(-log(p), 3))\nentropy = -sum(p*log(p, 2) for p in [0.5,0.5])\nprint('Fair coin entropy in bits:', entropy)",
+    "exercise": "What is the entropy of a deterministic distribution [1,0]?",
+    "solution": "Zero. The outcome has no uncertainty; use the limiting convention 0 log 0 = 0.",
+    "quiz": {
+      "question": "What happens to −log(ptrue) as ptrue approaches zero?",
+      "options": [
+        "It approaches zero",
+        "It grows without bound",
+        "It stays at one"
+      ],
+      "answer": 1,
+      "explanation": "Assigning near-zero probability to the observed event is an extremely confident mistake."
+    },
+    "sources": [
+      {
+        "title": "D2L: Information theory",
+        "url": "https://d2l.ai/chapter_appendix-mathematics-for-deep-learning/information-theory.html"
+      }
+    ]
+  }
+]

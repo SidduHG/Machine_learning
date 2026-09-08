@@ -1,0 +1,253 @@
+[
+  {
+    "id": "k-means",
+    "module": "unsupervised",
+    "title": "K-means: finding centers of gravity",
+    "summary": "Alternate between assigning points and moving centroids.",
+    "minutes": 35,
+    "lab": "k-means",
+    "intuition": [
+      "K-means divides points into k groups by minimizing squared distance to each group's centroid. It alternates two easy steps: assign each point to its nearest centroid, then replace each centroid with the mean of its assigned points.",
+      "This objective prefers compact, roughly spherical clusters under the chosen feature scale. A cluster is a mathematical grouping, not automatically a meaningful customer segment or natural category. The algorithm can converge to different local optima depending on initialization, so multiple starts are useful."
+    ],
+    "steps": [
+      "Choose k, scale features deliberately, and initialize distinct centers; k-means++ spreads starting centers probabilistically.",
+      "Assign each point to the nearest center, with a deterministic tie policy.",
+      "Update each center to its assigned mean. Keep or reinitialize an empty center using a documented strategy. Stop when assignments or centers stabilize, then compare multiple initializations."
+    ],
+    "formula": "\\min_{C,\\mu}\\sum_{i=1}^{n}\\|x_i-\\mu_{c_i}\\|^2,\\qquad \\mu_j=\\frac{1}{|C_j|}\\sum_{i\\in C_j}x_i",
+    "symbols": "ci identifies the cluster of point i, μj is cluster j's centroid, and the objective is within-cluster sum of squares (inertia). Increasing k can always reduce or preserve optimal inertia, so inertia alone cannot choose k.",
+    "example": {
+      "title": "Two groups on a line",
+      "body": "Points [1,2,8,9] begin with centers 1 and 8.",
+      "steps": [
+        "Assignments are [1,2] to center 1 and [8,9] to center 8.",
+        "New means are 1.5 and 8.5.",
+        "The total squared distance becomes 4×0.5²=1. Reassignment leaves the groups unchanged."
+      ]
+    },
+    "pitfalls": [
+      "K-means struggles with curved clusters, varying density, and extreme outliers.",
+      "Feature units can dominate distance; standardize or weight features with domain meaning."
+    ],
+    "code": "points, centers = [1,2,8,9], [1,8]\nfor step in range(3):\n    groups = [[x for x in points if min(range(2),key=lambda j:abs(x-centers[j]))==i] for i in range(2)]\n    centers = [sum(g)/len(g) if g else centers[i] for i,g in enumerate(groups)]\n    print(step,centers)",
+    "exercise": "Why does setting k equal to the number of distinct points give zero inertia?",
+    "solution": "Each point can become its own centroid. This minimizes the training objective but does not produce a useful compressed grouping.",
+    "quiz": {
+      "question": "During the update step, a centroid becomes…",
+      "options": [
+        "The maximum coordinate",
+        "The mean of its assigned points",
+        "A random label"
+      ],
+      "answer": 1,
+      "explanation": "The arithmetic mean minimizes the sum of squared distances for a fixed cluster assignment."
+    },
+    "sources": [
+      {
+        "title": "scikit-learn: K-means",
+        "url": "https://scikit-learn.org/stable/modules/clustering.html#k-means"
+      }
+    ]
+  },
+  {
+    "id": "density-clustering",
+    "module": "unsupervised",
+    "title": "DBSCAN and density-based clustering",
+    "summary": "Find connected dense regions and leave noise unassigned.",
+    "minutes": 30,
+    "intuition": [
+      "DBSCAN groups points through dense neighborhoods rather than forcing every observation toward a centroid. A core point has enough observations within a radius ε. Core points connect dense regions; nearby border points can join a cluster without expanding it.",
+      "This supports curved shapes and an explicit noise label, but one global radius may work poorly when cluster densities differ. A point marked noise is unusual under the chosen scale and parameters; it is not automatically an error or a harmful event."
+    ],
+    "steps": [
+      "Choose a distance metric and scale features. Define ε and min_samples, counting the point itself as in common implementations.",
+      "Identify core points whose ε-neighborhood meets the minimum count, then connect density-reachable cores.",
+      "Attach eligible border points and label remaining points noise. Inspect sensitivity to parameter changes and acknowledge ambiguous border assignment."
+    ],
+    "formula": "N_\\epsilon(x)=\\{z:d(x,z)\\le\\epsilon\\},\\qquad x\\text{ is core if }|N_\\epsilon(x)|\\ge m",
+    "symbols": "ε is neighborhood radius and m the minimum number of samples. Density reachability is not simply 'any chain of nearby points': expansion proceeds through core points.",
+    "example": {
+      "title": "A sparse outlier",
+      "body": "Points [0,0.1,0.2,3] use ε=0.15 and min_samples=3, including the query itself.",
+      "steps": [
+        "The point 0.1 sees [0,0.1,0.2] and is core.",
+        "Points 0 and 0.2 each have only two neighbors, but lie within reach of that core, so they can be border points.",
+        "Point 3 has only itself in its neighborhood and is noise."
+      ]
+    },
+    "pitfalls": [
+      "A radius suitable for one density may merge dense groups while missing sparse ones.",
+      "High-dimensional distances and large neighborhoods can make DBSCAN expensive or ineffective."
+    ],
+    "code": "points = [0,0.1,0.2,3]\neps, minimum = 0.15, 3\nfor x in points:\n    neighbors = [y for y in points if abs(x-y)<=eps]\n    print(x,'neighbors=',neighbors,'core=',len(neighbors)>=minimum)",
+    "exercise": "What changes if ε increases to 3 and min_samples stays 3?",
+    "solution": "Every point sees enough neighbors to become core and the dataset can merge into one cluster, erasing the original separation.",
+    "quiz": {
+      "question": "Which points expand a DBSCAN cluster?",
+      "options": [
+        "Core points",
+        "Only noise points",
+        "Every border point regardless of density"
+      ],
+      "answer": 0,
+      "explanation": "Expansion through core points prevents a sparse chain of border points from acting like a dense region."
+    },
+    "sources": [
+      {
+        "title": "scikit-learn: DBSCAN",
+        "url": "https://scikit-learn.org/stable/modules/clustering.html#dbscan"
+      }
+    ]
+  },
+  {
+    "id": "pca",
+    "module": "unsupervised",
+    "title": "PCA: the most informative viewpoint",
+    "summary": "Rotate toward variance, then compress with care.",
+    "minutes": 38,
+    "lab": "pca",
+    "intuition": [
+      "Principal component analysis finds orthogonal directions along which centered data varies most. Projecting onto the first few directions compresses the dataset while preserving as much squared variation as possible for that number of linear dimensions.",
+      "PCA is unsupervised: it does not know which variation predicts your target. A high-variance direction may represent lighting, measurement units, or an irrelevant nuisance. Standardization changes the problem by giving features more comparable variance; choose it based on meaning, not as an automatic ritual."
+    ],
+    "steps": [
+      "Fit the training mean and center the data; optionally standardize with training statistics.",
+      "Compute an SVD of the centered matrix, or eigenvectors of its covariance. Sort components by variance explained.",
+      "Project with the selected components and retain the fitted mean and basis for future inputs. Evaluate downstream predictive performance, not only reconstruction quality."
+    ],
+    "formula": "\\Sigma=\\frac{X_c^TX_c}{n-1},\\qquad \\Sigma v_j=\\lambda_jv_j,\\qquad Z=X_cV_k,\\qquad r_j=\\frac{\\lambda_j}{\\sum_l\\lambda_l}",
+    "symbols": "Xc is centered data, vj a unit component direction, λj its variance, and rj its explained-variance ratio. Component signs can flip without changing the subspace or reconstruction.",
+    "example": {
+      "title": "Points on a diagonal",
+      "body": "Centered points [−1,−1], [0,0], [1,1] lie on one line.",
+      "steps": [
+        "The first unit direction is [1/√2,1/√2].",
+        "Their scalar projections are −√2, 0, and √2.",
+        "Multiplying each projection by the direction reconstructs every point exactly. The orthogonal direction has zero variance."
+      ]
+    },
+    "pitfalls": [
+      "Fitting PCA before a train/test split leaks distribution information.",
+      "Keeping 95% variance does not guarantee keeping 95% predictive information."
+    ],
+    "code": "from math import sqrt\npoints = [(-1,-1),(0,0),(1,1)]\nu = (1/sqrt(2),1/sqrt(2))\nfor x in points:\n    z = sum(a*b for a,b in zip(x,u))\n    print('Projection:',round(z,3),'Reconstruction:',[round(z*v,3) for v in u])",
+    "exercise": "What happens if the first component direction is multiplied by −1?",
+    "solution": "Every scalar score changes sign too. Their product during reconstruction remains unchanged, so the geometric information is the same.",
+    "quiz": {
+      "question": "PCA chooses directions using…",
+      "options": [
+        "Target-label accuracy",
+        "Input variance",
+        "The alphabetical order of features"
+      ],
+      "answer": 1,
+      "explanation": "PCA is unsupervised; it optimizes a variance/reconstruction objective."
+    },
+    "sources": [
+      {
+        "title": "scikit-learn: PCA",
+        "url": "https://scikit-learn.org/stable/modules/decomposition.html#pca"
+      }
+    ]
+  },
+  {
+    "id": "anomaly-detection",
+    "module": "unsupervised",
+    "title": "Anomalies, novelty, and unusual observations",
+    "summary": "Define normal before calling something abnormal.",
+    "minutes": 28,
+    "intuition": [
+      "Anomaly detection scores observations that differ from an expected pattern. Outlier detection assumes the fitted dataset may already contain unusual points; novelty detection fits a mostly clean reference and evaluates new observations.",
+      "Isolation forests isolate unusual points using random partitions; local outlier methods compare neighborhood density; reconstruction methods flag patterns a model reconstructs poorly. Each method defines unusual differently. A high anomaly score should trigger investigation, not an automatic assumption of fraud, defect, or danger."
+    ],
+    "steps": [
+      "Define a reference population and time window that represent normal operation.",
+      "Fit an anomaly score on that reference, keeping evaluation labels or later periods separate.",
+      "Choose an alert threshold using review capacity and labeled examples when available. Monitor alert rate and outcomes as the system changes."
+    ],
+    "formula": "z(x)=\\frac{x-\\mu}{\\sigma},\\qquad s_{\\text{reconstruction}}(x)=\\|x-\\hat x\\|^2",
+    "symbols": "A z-score measures standardized distance from a mean and is appropriate only under relevant distribution assumptions. Reconstruction error is another score, not a calibrated probability of an anomaly.",
+    "example": {
+      "title": "A toy sensor baseline",
+      "body": "Reference readings [9,10,11] have mean 10 and population standard deviation √(2/3). A new reading is 14.",
+      "steps": [
+        "Its standardized deviation is (14−10)/√(2/3)≈4.90.",
+        "A chosen threshold |z|>3 would flag it in this toy model.",
+        "Investigate sensor calibration, context, and reference representativeness. Three baseline readings are far too little evidence for a serious operational policy."
+      ]
+    },
+    "pitfalls": [
+      "Anomalies can be legitimate rare cases; false alerts impose real review costs.",
+      "A model trained on a drifting baseline may normalize the very change you want to detect."
+    ],
+    "code": "from statistics import mean, pstdev\nreference = [9,10,11]\nscore = (14-mean(reference))/pstdev(reference)\nprint('Standardized score:',score)\nprint('Review flag:',abs(score)>3)",
+    "exercise": "Why can one fixed threshold fail across sensors with different noise levels?",
+    "solution": "The same raw deviation has different meaning under different variances. Calibrate to sensor context or use an appropriate conditional reference.",
+    "quiz": {
+      "question": "An anomaly score is automatically a probability of wrongdoing.",
+      "options": [
+        "True",
+        "False"
+      ],
+      "answer": 1,
+      "explanation": "It measures unusualness under a model. Meaning and action require context and validation."
+    },
+    "sources": [
+      {
+        "title": "scikit-learn: Novelty and outlier detection",
+        "url": "https://scikit-learn.org/stable/modules/outlier_detection.html"
+      }
+    ]
+  },
+  {
+    "id": "model-selection",
+    "module": "unsupervised",
+    "title": "Cross-validation and honest model selection",
+    "summary": "Tune a procedure while protecting the final evaluation.",
+    "minutes": 32,
+    "intuition": [
+      "Hyperparameter search compares modeling choices. Every choice made after examining validation data makes the procedure adapt to that data, so the best observed validation score is somewhat optimistic. Cross-validation reduces dependence on one split; it does not make unlimited tuning immune to overfitting.",
+      "A pipeline is the unit you evaluate: feature construction, preprocessing, estimator, and threshold selection. Nested cross-validation uses inner folds for tuning and outer folds for evaluation. For forecasting, chronological validation matters more than a generic shuffled k-fold recipe."
+    ],
+    "steps": [
+      "Choose folds that respect time, groups, and target balance as needed.",
+      "For each candidate, refit the whole pipeline inside each training fold and summarize validation scores and variability.",
+      "Select a candidate using validation, refit it on allowed training data, and report final test performance. Save configurations, seeds, dataset versions, and the search budget."
+    ],
+    "formula": "\\widehat R_{CV}(\\lambda)=\\frac1K\\sum_{k=1}^{K}\\frac1{|V_k|}\\sum_{i\\in V_k}\\ell(\\hat f_{\\lambda,-k}(x_i),y_i)",
+    "symbols": "λ denotes a candidate configuration, Vk a validation fold, and fλ,−k the model trained without that fold. Equal fold averaging is most natural when folds have equal sizes; otherwise consider weighting by sample count.",
+    "example": {
+      "title": "Compare three candidates",
+      "body": "Validation accuracies over three equal folds are A=[0.80,0.82,0.81], B=[0.84,0.70,0.83], C=[0.79,0.80,0.79].",
+      "steps": [
+        "A averages 0.81; B averages 0.79; C averages about 0.793.",
+        "B has one impressive fold but lower average and greater variation.",
+        "Choose using the declared metric and constraints. If latency matters, compare it too before opening the final test."
+      ]
+    },
+    "pitfalls": [
+      "Selecting features on the full dataset before CV invalidates the pipeline comparison.",
+      "Repeating experiments until the test score looks good turns the test into another validation set."
+    ],
+    "code": "scores = {'A':[.80,.82,.81],'B':[.84,.70,.83],'C':[.79,.80,.79]}\nmeans = {name:sum(values)/len(values) for name,values in scores.items()}\nprint(means)\nprint('Best mean:',max(means,key=means.get))",
+    "exercise": "You have three records per customer and will serve new customers. How should you split?",
+    "solution": "Keep every record from a customer in a single fold so validation measures performance on unseen customers.",
+    "quiz": {
+      "question": "What belongs inside each cross-validation training fold?",
+      "options": [
+        "Only the final estimator",
+        "All fitted preprocessing and the estimator",
+        "The final test labels"
+      ],
+      "answer": 1,
+      "explanation": "Every learned transformation must be fitted without its corresponding validation records."
+    },
+    "sources": [
+      {
+        "title": "scikit-learn: Cross-validation",
+        "url": "https://scikit-learn.org/stable/modules/cross_validation.html"
+      }
+    ]
+  }
+]

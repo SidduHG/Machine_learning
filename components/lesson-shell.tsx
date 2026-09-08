@@ -1,0 +1,5 @@
+'use client';
+import Link from 'next/link';
+import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
+import { ArrowLeft } from 'lucide-react';
+export function LessonShell({title,current,items,children}:{title:string;current:string;items:{id:string;title:string}[];children:React.ReactNode}){return <SidebarProvider className="lesson-layout wrap"><Sidebar collapsible="none" className="lesson-sidebar"><SidebarHeader><Link href="/learn" className="text-link"><ArrowLeft size={16}/>All modules</Link><h2>{title}</h2></SidebarHeader><SidebarContent><SidebarMenu>{items.map((l,i)=><SidebarMenuItem key={l.id}><SidebarMenuButton isActive={l.id===current} render={<Link href={'/learn/'+l.id}/>} className="lesson-nav-item"><span className="mono">{String(i+1).padStart(2,'0')}</span><span>{l.title}</span></SidebarMenuButton></SidebarMenuItem>)}</SidebarMenu></SidebarContent><p className="sidebar-note">Make it yours.<br/>Read. Experiment. Explain it back.</p></Sidebar><article className="lesson-article">{children}</article></SidebarProvider>}
