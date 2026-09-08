@@ -16,5 +16,7 @@ Handle empty results, unknown lesson identifiers, malformed local storage, unava
 Run applicable package scripts and inspect real results before PR creation. Update this plan with material implementation decisions and docs/release-quality with final verification. Tests must exercise user-relevant behavior or mathematical invariants.
 
 ## Definition of done
-Specified behavior works, no unresolved implementation placeholders remain, relevant checks pass, feature PR is reviewed and merged to main, and any external capability limitation is clearly documented.
 
+## Delivered details
+40 editable examples use a dedicated Pyodide worker and fresh namespaces. Four generated notebooks contain actual pipelines and rubrics; all were executed locally with scikit-learn 1.8.0. Browser runs have a 90-second loading timeout, 10-second execution timeout and capped output. Local progress is validated before imports are merged. Learners explicitly mark completion and save notes. Storage errors are surfaced. Worker unit tests inject a runtime for deterministic lifecycle checks; native Python tests exercise every example and notebook.
+Specified behavior works, no unresolved implementation placeholders remain, relevant checks pass, feature PR is reviewed and merged to main, and any external capability limitation is clearly documented.
