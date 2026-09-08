@@ -1,0 +1,110 @@
+[
+  {
+    "id": "tabular-regression",
+    "title": "A reproducible regression pipeline",
+    "category": "TABULAR ML",
+    "level": "Core ML",
+    "hours": "3–5 hours",
+    "summary": "Compare a mean baseline with a regularized regression model and write an honest error report.",
+    "dataset": "scikit-learn diabetes benchmark · 442 observations, 10 numeric features",
+    "source": "https://scikit-learn.org/stable/datasets/toy_dataset.html#diabetes-dataset",
+    "brief": "You are comparing model-development procedures on a historical benchmark. Predict the numeric target from the provided features. Treat this strictly as an educational benchmark, not a medical decision tool. Your deliverable is a reproducible pipeline and a documented held-out error comparison.",
+    "steps": [
+      "Load the benchmark and record shape, feature names, missingness and target distribution.",
+      "Reserve 20% of records as a final test using random_state=42. Explain the limits of a random split for a real deployment.",
+      "Compare DummyRegressor(strategy='mean') with a StandardScaler + Ridge pipeline. Tune alpha with 5-fold cross-validation on training data only.",
+      "Evaluate held-out MAE and RMSE. Inspect the ten largest residuals and explain what the metric does not capture.",
+      "Save configuration and produce a short model card with intended educational use and limitations."
+    ],
+    "rubric": [
+      "A clean run prints the dataset shape and train/test sizes.",
+      "Preprocessing is inside the cross-validated pipeline.",
+      "The report includes baseline and selected-model MAE on identical held-out records.",
+      "No test labels influence hyperparameter selection.",
+      "A README explains how to reproduce the result and why it is not a clinical model."
+    ],
+    "extension": "Compare an ensemble on the same training folds. Decide whether any improvement justifies its complexity.",
+    "code": "from sklearn.datasets import load_diabetes\nfrom sklearn.model_selection import train_test_split, GridSearchCV\nfrom sklearn.pipeline import make_pipeline\nfrom sklearn.preprocessing import StandardScaler\nfrom sklearn.linear_model import Ridge\nfrom sklearn.dummy import DummyRegressor\nfrom sklearn.metrics import mean_absolute_error, root_mean_squared_error\n\nX, y = load_diabetes(return_X_y=True)\nX_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)\nbaseline = DummyRegressor(strategy='mean').fit(X_train, y_train)\nsearch = GridSearchCV(make_pipeline(StandardScaler(), Ridge()), {'ridge__alpha':[0.1,1,10,100]}, cv=5, scoring='neg_mean_absolute_error')\nsearch.fit(X_train, y_train)\nprint('Shape:', X.shape, 'Train/test:', len(y_train), len(y_test))\nprint('Selected configuration:', search.best_params_)\nfor name, model in [('Baseline',baseline),('Ridge',search.best_estimator_)]:\n    predictions = model.predict(X_test)\n    print(name, 'MAE:', round(mean_absolute_error(y_test,predictions),3), 'RMSE:', round(root_mean_squared_error(y_test,predictions),3))\n"
+  },
+  {
+    "id": "wine-classification",
+    "title": "Classify a real-world table",
+    "category": "CLASSIFICATION",
+    "level": "Core ML",
+    "hours": "3–4 hours",
+    "summary": "Build a multiclass classifier, inspect confusion, and compare macro metrics with accuracy.",
+    "dataset": "scikit-learn wine benchmark · 178 observations, 13 chemical measurements",
+    "source": "https://scikit-learn.org/stable/datasets/toy_dataset.html#wine-recognition-dataset",
+    "brief": "A small historical wine dataset contains chemical measurements and three cultivar classes. Build a classifier and explain which classes it confuses. Your focus is a transparent pipeline and evaluation, not a claim that this small dataset represents all modern wine production.",
+    "steps": [
+      "Inspect class balance and identify which numeric features have different scales.",
+      "Create a stratified 80/20 train/test split with random_state=42.",
+      "Fit a most-frequent baseline and a scaling + logistic-regression pipeline.",
+      "Report accuracy, macro F1 and a confusion matrix with class labels.",
+      "Inspect errors and discuss sampling limitations before proposing a serving contract."
+    ],
+    "rubric": [
+      "The split is stratified and reproducible.",
+      "The scaler sees only training features.",
+      "The confusion matrix is labeled and macro F1 is explained.",
+      "A baseline is reported on the same test records.",
+      "Input field names and units are documented."
+    ],
+    "extension": "Compare kNN across several k values using inner training folds. Explain which features dominate distance without scaling.",
+    "code": "from sklearn.datasets import load_wine\nfrom sklearn.model_selection import train_test_split\nfrom sklearn.pipeline import make_pipeline\nfrom sklearn.preprocessing import StandardScaler\nfrom sklearn.linear_model import LogisticRegression\nfrom sklearn.dummy import DummyClassifier\nfrom sklearn.metrics import accuracy_score, f1_score, confusion_matrix\n\ndata = load_wine()\nX_train, X_test, y_train, y_test = train_test_split(data.data, data.target, test_size=.2, random_state=42, stratify=data.target)\nmodels = {'Baseline':DummyClassifier(strategy='most_frequent'), 'Logistic':make_pipeline(StandardScaler(),LogisticRegression(max_iter=1000))}\nprint('Classes:', list(data.target_names))\nfor name,model in models.items():\n    model.fit(X_train,y_train)\n    predictions=model.predict(X_test)\n    print(name, 'Accuracy:',round(accuracy_score(y_test,predictions),3),'Macro F1:',round(f1_score(y_test,predictions,average='macro'),3))\n    print(confusion_matrix(y_test,predictions))\n"
+  },
+  {
+    "id": "digits-network",
+    "title": "Recognize handwritten digits",
+    "category": "NEURAL NETWORKS",
+    "level": "Intermediate",
+    "hours": "4–6 hours",
+    "summary": "Train a small dense neural network on 8×8 images and compare it with a linear baseline.",
+    "dataset": "scikit-learn digits benchmark · 1,797 images with 64 pixel features",
+    "source": "https://scikit-learn.org/stable/datasets/toy_dataset.html#optical-recognition-of-handwritten-digits-dataset",
+    "brief": "Build a small image classifier that predicts digits 0–9. Begin with logistic regression, then compare a multilayer perceptron. The network is a compact CPU-friendly scikit-learn model; extending it to a PyTorch CNN is a separate challenge.",
+    "steps": [
+      "Load the 8×8 images, inspect pixel range, and understand the flattened 64-feature representation.",
+      "Make a stratified train/test split before selecting architecture.",
+      "Fit scaled logistic regression and a one-hidden-layer MLP with early stopping using an internal training-validation split.",
+      "Report test accuracy and a confusion matrix. Inspect wrong predictions by reshaping the feature vectors back into images.",
+      "Document training duration, parameter choices and the limits of performance on this small benchmark."
+    ],
+    "rubric": [
+      "The final test remains unused by early stopping.",
+      "A linear baseline and MLP use identical test records.",
+      "The report distinguishes the flat dense network from a convolutional architecture.",
+      "Misclassifications are inspected, not just counted.",
+      "The notebook runs on a CPU with fixed random seeds."
+    ],
+    "extension": "Implement an equivalent PyTorch training loop, then try a small CNN. Compare parameter count, runtime, and held-out performance.",
+    "code": "from sklearn.datasets import load_digits\nfrom sklearn.model_selection import train_test_split\nfrom sklearn.pipeline import make_pipeline\nfrom sklearn.preprocessing import StandardScaler\nfrom sklearn.linear_model import LogisticRegression\nfrom sklearn.neural_network import MLPClassifier\nfrom sklearn.metrics import accuracy_score, confusion_matrix\n\ndigits=load_digits()\nX_train,X_test,y_train,y_test=train_test_split(digits.data,digits.target,test_size=.2,stratify=digits.target,random_state=42)\nmodels={'Linear':make_pipeline(StandardScaler(),LogisticRegression(max_iter=1000)), 'MLP':make_pipeline(StandardScaler(),MLPClassifier(hidden_layer_sizes=(48,),early_stopping=True,max_iter=120,random_state=42))}\nfor name,model in models.items():\n    model.fit(X_train,y_train)\n    predictions=model.predict(X_test)\n    print(name,'Accuracy:',round(accuracy_score(y_test,predictions),4))\n    print('First mistakes:',[(int(a),int(b)) for a,b in zip(y_test,predictions) if a!=b][:10])\n    print(confusion_matrix(y_test,predictions))\n"
+  },
+  {
+    "id": "retrieval-system",
+    "title": "Build an evidence-first study assistant",
+    "category": "AI ENGINEERING",
+    "level": "Intermediate",
+    "hours": "4–6 hours",
+    "summary": "Create and evaluate a retrieval system before connecting a language model.",
+    "dataset": "A small original course-note collection included in the notebook",
+    "source": "https://arxiv.org/abs/2005.11401",
+    "brief": "Build the retrieval layer for a question-answering system. Begin with a transparent lexical baseline, preserve source IDs, and refuse to invent evidence for unrelated questions. The runnable notebook performs retrieval; adding a generative model is an optional extension that requires your own provider credentials.",
+    "steps": [
+      "Write a small permitted collection with stable source IDs and topic-specific passages.",
+      "Tokenize consistently and score term overlap as a baseline.",
+      "Return ranked evidence and abstain when no content terms match.",
+      "Create a held-out set of questions with expected sources and report top-1 source accuracy.",
+      "Document failures from synonyms and vocabulary mismatch. Compare a TF-IDF or embedding retriever before adding generation."
+    ],
+    "rubric": [
+      "Every answer-like result includes its source ID.",
+      "An unrelated question yields no matching evidence.",
+      "Evaluation questions are separate from ranking logic.",
+      "The report separates retrieval accuracy from generated-answer quality.",
+      "No provider secret appears in source code or notebook output."
+    ],
+    "extension": "Add semantic retrieval and reranking. If you connect a language model, evaluate citation support and resistance to instructions embedded in retrieved documents.",
+    "code": "import re\nnotes={\n 'gradient-descent':'gradient descent updates weights in the negative gradient direction with a learning rate',\n 'regularization':'regularization penalizes large weights and can reduce overfitting',\n 'pca':'principal component analysis pca projects data onto directions of high variance',\n 'evaluation':'precision counts correct positive predictions recall counts recovered actual positives'\n}\nstop={'the','a','an','is','in','of','how','what','does','to','and','can'}\ndef tokens(text):\n    return set(re.findall(r'[a-z]+',text.lower()))-stop\ndef retrieve(question):\n    ranked=sorted(((len(tokens(question)&tokens(text)),key) for key,text in notes.items()),reverse=True)\n    return ranked[0][1] if ranked[0][0]>0 else None\nquestions=[('How does gradient descent use learning rate?','gradient-descent'),('What reduces overfitting?','regularization'),('How does PCA preserve variance?','pca'),('How is recall calculated?','evaluation')]\ncorrect=0\nfor question,expected in questions:\n    source=retrieve(question)\n    correct += source==expected\n    print(question,'=>',source)\nprint('Top-1 source accuracy:',correct/len(questions))\nprint('Unrelated question:',retrieve('How should I bake a cake?'))\n"
+  }
+]
