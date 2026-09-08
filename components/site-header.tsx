@@ -1,0 +1,7 @@
+'use client';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { ArrowUpRight, Layers3, Menu } from 'lucide-react';
+import { Sheet, SheetTrigger, SheetContent, SheetTitle, SheetDescription, SheetClose } from '@/components/ui/sheet';
+const links = [['Learn','/learn'],['Visual labs','/labs'],['Practice','/practice'],['My learning','/progress']];
+export function SiteHeader(){const path=usePathname();return <><a className="skip-link" href="#main">Skip to content</a><header className="site-header"><div className="wrap header-inner"><Link href="/" className="brand"><span className="brand-mark"><Layers3 size={21}/></span>ml<span className="brand-light">atlas</span><span className="brand-dot">.</span></Link><nav aria-label="Main navigation" className="desktop-nav">{links.map(([t,h])=><Link key={h} href={h} className={path.startsWith(h)?'active':''}>{t}</Link>)}</nav><a className="github-link" href="https://github.com/SidduHG/Machine_learning" target="_blank" rel="noreferrer">Open source <ArrowUpRight size={16}/></a><Sheet><SheetTrigger className="mobile-menu" aria-label="Open navigation"><Menu/></SheetTrigger><SheetContent><SheetTitle className="p-5">Explore ML Atlas</SheetTitle><SheetDescription className="px-5">Your open machine learning school.</SheetDescription><nav className="mobile-links" aria-label="Mobile navigation">{links.map(([t,h])=><SheetClose key={h} render={<Link href={h}/>}>{t}</SheetClose>)}</nav></SheetContent></Sheet></div></header></>}
