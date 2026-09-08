@@ -1,0 +1,253 @@
+[
+  {
+    "id": "tensors-autograd",
+    "module": "deep-learning",
+    "title": "Tensors and automatic differentiation",
+    "summary": "Track shapes, devices, and gradients through a computation.",
+    "minutes": 35,
+    "intuition": [
+      "A tensor is a multidimensional numeric array. In deep learning it also carries practical metadata such as dtype, device, and whether gradients should be tracked. A batch of RGB images might have shape (batch, channels, height, width), but conventions differ across libraries.",
+      "Automatic differentiation applies the chain rule to the operations that actually ran. It is neither symbolic algebra over an entire program nor finite-difference guessing. Frameworks record a computation graph, then propagate derivatives backward from a scalar objective. In PyTorch, gradients accumulate until you clear them."
+    ],
+    "steps": [
+      "Create floating-point tensors on the intended device and enable gradient tracking for trainable values.",
+      "Execute the forward operations, reduce per-example losses into a scalar, and call backward.",
+      "Read gradients, update parameters through an optimizer, and clear old gradients before the next intended minibatch update. Disable tracking for inference to save memory."
+    ],
+    "formula": "z=wx+b,\\quad L=(z-y)^2,\\quad \\frac{\\partial L}{\\partial w}=2(z-y)x,\\quad \\frac{\\partial L}{\\partial b}=2(z-y)",
+    "symbols": "Autograd computes these local derivatives and composes them. Integer data cannot carry ordinary continuous gradients; labels are usually not trainable. A detached tensor breaks the gradient path by design.",
+    "example": {
+      "title": "The graph behind one example",
+      "body": "Let x=2,w=3,b=1,y=5. The prediction is 7 and squared error is 4.",
+      "steps": [
+        "The loss derivative with respect to prediction is 2(7−5)=4.",
+        "The prediction changes by x=2 per unit of w, giving weight gradient 8.",
+        "The bias gradient is 4. The arithmetic below mirrors the autograd result without requiring a large library download."
+      ]
+    },
+    "pitfalls": [
+      "Calling backward twice without clearing gradients generally accumulates them.",
+      "In-place mutation of values required for backward can invalidate a computation graph."
+    ],
+    "code": "x,w,b,y = 2.0,3.0,1.0,5.0\nz = w*x+b\nloss = (z-y)**2\ndz = 2*(z-y)\nprint('Loss:',loss,'dL/dw:',dz*x,'dL/db:',dz)",
+    "exercise": "Write the corresponding PyTorch steps in a local notebook: create w with requires_grad=True, compute loss, then call backward. What should w.grad be?",
+    "solution": "With the same values, w.grad is 8. Use torch.tensor(3.0, requires_grad=True), loss=(w*2+1-5)**2, then loss.backward().",
+    "quiz": {
+      "question": "Why clear gradients between ordinary optimizer steps?",
+      "options": [
+        "They accumulate by default",
+        "The dataset disappears otherwise",
+        "It changes integer labels to floats"
+      ],
+      "answer": 0,
+      "explanation": "Accumulation is useful when deliberate, but unintended accumulation changes the update."
+    },
+    "sources": [
+      {
+        "title": "PyTorch: Autograd basics",
+        "url": "https://docs.pytorch.org/tutorials/beginner/basics/autogradqs_tutorial.html"
+      }
+    ]
+  },
+  {
+    "id": "neural-networks",
+    "module": "deep-learning",
+    "title": "Neural networks and backpropagation",
+    "summary": "Compose simple units into nonlinear decision rules.",
+    "minutes": 45,
+    "lab": "neural-network",
+    "intuition": [
+      "A dense layer mixes input coordinates using weights and biases. An activation then applies a nonlinear transformation. Stacking only linear layers still produces one linear transformation; nonlinear activations are what let a network build more flexible representations.",
+      "Backpropagation efficiently computes parameter gradients by reusing intermediate derivatives in reverse order. It does not choose the update itself—that is the optimizer's job. Network capacity, data quality, initialization, and objective design all shape what the learned representation can accomplish."
+    ],
+    "steps": [
+      "Perform a forward pass: affine transformation, activation, additional layers, then a task-appropriate output and loss.",
+      "Propagate the loss derivative backward. Multiply by local activation derivatives and transpose weight matrices as dimensions require.",
+      "Accumulate per-parameter gradients, update with the optimizer, and evaluate on held-out data. Watch for dead ReLUs and unstable activation/gradient scales."
+    ],
+    "formula": "h=\\phi(W_1x+b_1),\\quad \\hat y=W_2h+b_2,\\quad \\frac{\\partial L}{\\partial W_1}=\\left((W_2^T\\delta)\\odot\\phi'(W_1x+b_1)\\right)x^T",
+    "symbols": "φ is an activation such as ReLU max(0,z), δ is the loss gradient at the output, and ⊙ is elementwise multiplication. The formula shows a single-example dense-layer gradient; batches sum or average contributions.",
+    "example": {
+      "title": "One hidden unit",
+      "body": "Use x=2,w1=0.5,w2=3 with zero biases, ReLU activation, target 1, and loss (prediction−target)²/2.",
+      "steps": [
+        "Hidden preactivation is 1, so h=1; output is 3; loss is 2.",
+        "Output derivative is 3−1=2. Thus dw2=2×h=2.",
+        "ReLU derivative is 1 at preactivation 1. Thus dw1=2×3×1×2=12."
+      ]
+    },
+    "pitfalls": [
+      "Randomly zeroing every weight makes identical hidden units learn identically; use a suitable symmetry-breaking initialization.",
+      "ReLU outputs zero for negative inputs, and a unit stuck there may receive zero gradient."
+    ],
+    "code": "x,w1,w2,target = 2.0,0.5,3.0,1.0\nz = w1*x\nh = max(0,z)\nprediction = w2*h\ndelta = prediction-target\ndw2 = delta*h\ndw1 = delta*w2*(1 if z>0 else 0)*x\nprint('Prediction:',prediction,'dw1:',dw1,'dw2:',dw2)",
+    "exercise": "Set w1=−0.5. What happens to h and the gradient of w1 in this example?",
+    "solution": "The preactivation is −1, h=0, and the ReLU derivative is zero, so dw1=0. The unit cannot recover through that example alone.",
+    "quiz": {
+      "question": "Why insert nonlinear activations between dense layers?",
+      "options": [
+        "To make stacked layers more expressive than one linear map",
+        "To guarantee perfect generalization",
+        "To remove all trainable parameters"
+      ],
+      "answer": 0,
+      "explanation": "A composition of affine maps is another affine map unless nonlinear operations intervene."
+    },
+    "sources": [
+      {
+        "title": "D2L: Backpropagation",
+        "url": "https://d2l.ai/chapter_multilayer-perceptrons/backprop.html"
+      }
+    ]
+  },
+  {
+    "id": "training-networks",
+    "module": "deep-learning",
+    "title": "Train networks reliably",
+    "summary": "Minibatches, momentum, Adam, normalization, and early stopping.",
+    "minutes": 38,
+    "intuition": [
+      "Training is a controlled experiment. A minibatch provides an estimate of the full-data gradient. Small batches are noisy; large batches use more memory and change optimization behavior. The right choice depends on data, hardware, and the learning-rate schedule.",
+      "Momentum accumulates a smoothed update direction. Adam adapts updates using estimates of first and second gradient moments. Neither guarantees that a bad objective or leaked dataset will become useful. A reliable training loop records losses, validation metrics, configurations, and checkpoints."
+    ],
+    "steps": [
+      "Seed relevant random generators, version data, initialize the model, and verify that a tiny batch can be overfit as a debugging check.",
+      "For each minibatch: clear gradients, forward pass, loss, backward pass, optional clipping, optimizer step. Use training mode for training.",
+      "Switch to evaluation mode and disable gradient tracking for validation. Save the best checkpoint by a declared validation metric and stop before repeated evaluation becomes unstructured tuning."
+    ],
+    "formula": "m_t=\\beta_1m_{t-1}+(1-\\beta_1)g_t,\\quad v_t=\\beta_2v_{t-1}+(1-\\beta_2)g_t^2,\\quad \\theta_{t+1}=\\theta_t-\\eta\\frac{\\hat m_t}{\\sqrt{\\hat v_t}+\\epsilon}",
+    "symbols": "Adam uses bias-corrected moments m̂t=mt/(1−β1ᵗ) and v̂t=vt/(1−β2ᵗ). ε provides numerical stability. AdamW decouples weight decay from the adaptive gradient update.",
+    "example": {
+      "title": "A momentum memory",
+      "body": "With velocity v0=0, momentum β=0.9, and repeated gradient g=2, use vnext=βv+g.",
+      "steps": [
+        "First velocity is 2.",
+        "Second velocity is 0.9×2+2=3.8.",
+        "Third velocity is 5.42. This convention accumulates direction; some formulations scale the new gradient by 1−β instead, so compare definitions carefully."
+      ]
+    },
+    "pitfalls": [
+      "Forgetting eval mode leaves dropout active and batch normalization using training behavior.",
+      "A reproducible seed alone does not ensure identical results across hardware, library versions, or nondeterministic kernels."
+    ],
+    "code": "velocity = 0.0\nmomentum, rate, weight = 0.9, 0.01, 1.0\nfor step in range(3):\n    gradient = 2.0\n    velocity = momentum*velocity+gradient\n    weight -= rate*velocity\n    print(step,'velocity=',velocity,'weight=',weight)",
+    "exercise": "Why monitor a validation metric in addition to the training loss?",
+    "solution": "The training objective can improve while unseen-data performance worsens. Validation detects generalization changes and supports checkpoint selection.",
+    "quiz": {
+      "question": "What is gradient clipping primarily meant to control?",
+      "options": [
+        "Very large gradient updates",
+        "The number of labels",
+        "All sources of overfitting"
+      ],
+      "answer": 0,
+      "explanation": "Clipping limits gradient magnitude to improve stability, especially when gradients explode."
+    },
+    "sources": [
+      {
+        "title": "PyTorch: Optimizing model parameters",
+        "url": "https://docs.pytorch.org/tutorials/beginner/basics/optimization_tutorial.html"
+      }
+    ]
+  },
+  {
+    "id": "convolution",
+    "module": "deep-learning",
+    "title": "Convolutional networks and visual patterns",
+    "summary": "Reuse local detectors across an image.",
+    "minutes": 35,
+    "intuition": [
+      "A convolutional layer applies the same small filter at many positions. Sharing weights expresses the idea that a local visual pattern can matter wherever it appears. Early filters can detect simple contrasts; deeper layers combine information over larger receptive fields.",
+      "Stride controls how far the filter moves, padding controls boundary handling, and channels represent different feature maps. Pooling or strided layers reduce spatial resolution, trading detailed position information for larger context and lower computation. Transfer learning often makes more sense than training a vision system from scratch."
+    ],
+    "steps": [
+      "Arrange images into the expected channel order and normalize using a consistent preprocessing policy.",
+      "Slide filters over local patches, computing a weighted sum at each output position. Apply nonlinearities and stack layers.",
+      "For a downstream task, adapt a suitable pretrained model and evaluate on images separated by meaningful groups, such as original scene or subject, to avoid near-duplicate leakage."
+    ],
+    "formula": "Y_{i,j}=\\sum_{a,b}K_{a,b}X_{i+a,j+b},\\qquad H_{out}=\\left\\lfloor\\frac{H+2P-K}{S}\\right\\rfloor+1",
+    "symbols": "The displayed operation is cross-correlation, commonly called convolution in deep-learning APIs. H is input size, P padding, K kernel size, and S stride, assuming dilation 1.",
+    "example": {
+      "title": "A simple edge detector",
+      "body": "Apply one-dimensional filter [−1,0,1] to signal [1,1,1,5,5] with stride 1 and no padding.",
+      "steps": [
+        "First patch [1,1,1] produces −1+1=0.",
+        "Second patch [1,1,5] produces 4.",
+        "Third patch [1,5,5] also produces 4. The filter responds to a change, not a constant region."
+      ]
+    },
+    "pitfalls": [
+      "Augmentations must preserve the target meaning; flipping text or changing a diagnostic feature may invalidate labels.",
+      "Splitting augmented versions of the same source image across train and test creates leakage."
+    ],
+    "code": "signal = [1,1,1,5,5]\nkernel = [-1,0,1]\noutput = [sum(signal[i+j]*kernel[j] for j in range(3)) for i in range(len(signal)-2)]\nprint('Filter response:',output)",
+    "exercise": "For an image height 32, kernel 3, padding 1, and stride 2, compute output height.",
+    "solution": "floor((32+2−3)/2)+1 = floor(31/2)+1 = 16.",
+    "quiz": {
+      "question": "Why share a convolutional filter across positions?",
+      "options": [
+        "To reuse a local detector with fewer parameters",
+        "To force every pixel to be identical",
+        "To eliminate the need for training data"
+      ],
+      "answer": 0,
+      "explanation": "Weight sharing uses the same learned pattern detector throughout the image."
+    },
+    "sources": [
+      {
+        "title": "D2L: Convolutions for images",
+        "url": "https://d2l.ai/chapter_convolutional-neural-networks/conv-layer.html"
+      }
+    ]
+  },
+  {
+    "id": "sequences",
+    "module": "deep-learning",
+    "title": "Sequences, recurrent models, and time series",
+    "summary": "Model order while keeping the future out of training.",
+    "minutes": 35,
+    "intuition": [
+      "In a sequence, order carries information. A recurrent neural network updates a hidden state as each input arrives, reusing the same parameters over time. The state summarizes earlier inputs, but long sequences can make gradients vanish or explode.",
+      "LSTMs and GRUs introduce gates that regulate what information is retained and changed. Transformers use attention as another way to relate positions. For forecasting, architecture is only part of the problem: the evaluation split, feature availability, seasonality, and baseline choice are crucial."
+    ],
+    "steps": [
+      "Define the forecasting horizon and precisely which observations are available at each prediction time.",
+      "Construct lagged features or sequence windows without future values. Compare a last-value or seasonal-naive baseline.",
+      "Train and validate chronologically with a suitable gap when windows overlap. Evaluate error by horizon, season, and meaningful groups."
+    ],
+    "formula": "h_t=\\tanh(W_xx_t+W_hh_{t-1}+b),\\qquad \\hat y_{t+1}=W_oh_t+b_o",
+    "symbols": "ht is hidden state at time t. Reusing Wh over many steps leads to products of derivatives during backpropagation through time, explaining gradient decay or growth.",
+    "example": {
+      "title": "A last-value baseline",
+      "body": "Observed demand is [10,12,11,15,14]. Predict each next value using the previous observation.",
+      "steps": [
+        "Predictions for times 2 through 5 are [10,12,11,15].",
+        "Targets are [12,11,15,14]. Absolute errors are [2,1,4,1].",
+        "MAE is 8/4=2. A complex sequence model should improve on this baseline using an equally honest temporal test."
+      ]
+    },
+    "pitfalls": [
+      "Randomly shuffling overlapping time windows can place almost identical information in train and test.",
+      "A feature such as a daily total is unavailable for an early-day prediction if it includes later events."
+    ],
+    "code": "series = [10,12,11,15,14]\npredictions, targets = series[:-1], series[1:]\nmae = sum(abs(p-y) for p,y in zip(predictions,targets))/len(targets)\nprint('Last-value MAE:',mae)",
+    "exercise": "Design a seasonal-naive predictor for daily observations with a weekly pattern.",
+    "solution": "Predict today's demand using the observation seven days earlier. Compare it chronologically to the last-value baseline and the learned model.",
+    "quiz": {
+      "question": "For a next-week forecast, which validation design is most realistic?",
+      "options": [
+        "Train on later dates and test earlier dates",
+        "Train on earlier dates and evaluate later dates",
+        "Mix future targets into lag features"
+      ],
+      "answer": 1,
+      "explanation": "Validation should reproduce the information available when forecasting the future."
+    },
+    "sources": [
+      {
+        "title": "D2L: Recurrent neural networks",
+        "url": "https://d2l.ai/chapter_recurrent-neural-networks/rnn.html"
+      }
+    ]
+  }
+]

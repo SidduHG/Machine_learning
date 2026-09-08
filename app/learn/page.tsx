@@ -1,0 +1,5 @@
+import type { Metadata } from 'next';
+import { lessons, modules } from '@/lib/curriculum';
+import { CurriculumBrowser } from '@/components/curriculum-browser';
+export const metadata:Metadata={title:'The learning path'};
+export default function Learn(){return <main id="main" className="wrap learning-page"><div className="page-head"><div className="eyebrow">THE LEARNING PATH</div><h1>Understand it. Then build it.</h1><p>Start at the beginning or follow your curiosity. Every lesson brings together the intuition, the math, a worked example, and code you can explore.</p><div className="course-stats"><span><strong>{modules.length}</strong> modules</span><span><strong>{lessons.length}</strong> original lessons</span><span><strong>{Math.round(lessons.reduce((n,l)=>n+l.minutes,0)/60)}</strong> hours of guided study</span><span>Always open. Always at your pace.</span></div></div><CurriculumBrowser modules={modules} lessons={lessons.map(({id,title,summary,module,minutes,lab})=>({id,title,summary,module,minutes,lab}))}/></main>}

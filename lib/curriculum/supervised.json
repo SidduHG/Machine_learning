@@ -1,0 +1,255 @@
+[
+  {
+    "id": "linear-regression",
+    "module": "supervised",
+    "title": "Linear regression, from first principles",
+    "summary": "Fit a line and understand what its errors mean.",
+    "minutes": 40,
+    "lab": "linear-regression",
+    "intuition": [
+      "Linear regression predicts a number by adding weighted features. With one feature it is a line: the slope says how much the prediction changes per unit of input, and the intercept sets the prediction when that input is zero. Multiple features form a plane or hyperplane.",
+      "Training chooses coefficients that make predictions close to observed targets. Squared error gives large residuals disproportionate influence and produces a convex objective for ordinary linear regression. A linear model can include nonlinear features such as x²; it is linear in its learned coefficients, not necessarily in the original input."
+    ],
+    "steps": [
+      "Build a baseline that always predicts the training mean. Plot inputs against targets and inspect outliers.",
+      "Write predictions ŷᵢ = wxᵢ + b. Compute residuals ŷᵢ − yᵢ, square them, and average.",
+      "Fit with a stable least-squares solver or gradient descent. Inspect residual patterns and evaluate held-out MAE or RMSE. Curved residual structure suggests the feature representation misses a relationship."
+    ],
+    "formula": "J(w,b)=\\frac1n\\sum_i(wx_i+b-y_i)^2,\\quad \\hat w=\\frac{\\sum_i(x_i-\\bar x)(y_i-\\bar y)}{\\sum_i(x_i-\\bar x)^2},\\quad \\hat b=\\bar y-\\hat w\\bar x",
+    "symbols": "w is slope, b intercept, and J mean squared error. The closed-form scalar slope needs nonzero input variance. The matrix normal equation is a derivation tool; production solvers generally avoid explicitly inverting XᵀX.",
+    "example": {
+      "title": "Learning a delivery-time rule",
+      "body": "Distances [1,2,3] km correspond to durations [3,5,7] minutes in an intentionally noiseless example.",
+      "steps": [
+        "Means: x̄=2 and ȳ=5. Covariance numerator is 4; input squared deviations sum to 2.",
+        "The slope is 4/2=2 and intercept 5−2×2=1.",
+        "At 4 km the model predicts 9 minutes. Real data adds noise, so test extrapolation carefully."
+      ]
+    },
+    "pitfalls": [
+      "The intercept may not be meaningful when zero is outside the observed input range.",
+      "Correlated features can make individual coefficients unstable even when predictions remain useful."
+    ],
+    "code": "x, y = [1,2,3], [3,5,7]\nmx, my = sum(x)/len(x), sum(y)/len(y)\nw = sum((a-mx)*(b-my) for a,b in zip(x,y))/sum((a-mx)**2 for a in x)\nb = my-w*mx\nprint('Slope:',w,'Intercept:',b)\nprint('Prediction at 4:',w*4+b)",
+    "exercise": "Change the middle target from 5 to 8. Fit again and explain how the intercept changes.",
+    "solution": "The means become x̄=2, ȳ=6. The slope remains 2 by symmetry; the intercept rises from 1 to 2. The fit no longer interpolates every point.",
+    "quiz": {
+      "question": "Why does squared error react strongly to outliers?",
+      "options": [
+        "Residuals are squared",
+        "It ignores the largest residual",
+        "It only uses the median"
+      ],
+      "answer": 0,
+      "explanation": "Doubling a residual quadruples its squared contribution."
+    },
+    "sources": [
+      {
+        "title": "scikit-learn: Ordinary least squares",
+        "url": "https://scikit-learn.org/stable/modules/linear_model.html#ordinary-least-squares"
+      }
+    ]
+  },
+  {
+    "id": "gradient-descent",
+    "module": "supervised",
+    "title": "Gradient descent: learning one step at a time",
+    "summary": "Walk a loss landscape with a controllable step size.",
+    "minutes": 40,
+    "lab": "gradient-descent",
+    "intuition": [
+      "Think of loss as height on a landscape whose coordinates are model parameters. The gradient tells you which local direction rises fastest. Gradient descent updates parameters in the opposite direction, scaled by a learning rate.",
+      "The landscape metaphor has limits: real models can have millions of dimensions and nonconvex losses. Full-batch descent uses every training example to estimate each step. Stochastic and minibatch descent use noisy estimates that make large datasets tractable. Convergence must be judged with both training dynamics and held-out performance."
+    ],
+    "steps": [
+      "Initialize parameters and compute a forward prediction and loss.",
+      "Differentiate the loss with respect to each parameter. For MSE regression, average residual-weighted inputs for the slope gradient and residuals for the intercept gradient.",
+      "Update all parameters using gradients from the same old state. Repeat while recording loss. Reduce the step size or rescale features if updates oscillate or diverge."
+    ],
+    "formula": "\\theta_{t+1}=\\theta_t-\\eta\\nabla J(\\theta_t),\\quad \\frac{\\partial J}{\\partial w}=\\frac{2}{n}\\sum_i(wx_i+b-y_i)x_i",
+    "symbols": "θ is the parameter vector, η the learning rate, and t the iteration. For J(w)=w², the update is wnext=(1−2η)w; convergence requires |1−2η|<1, or 0<η<1.",
+    "example": {
+      "title": "Descending a bowl",
+      "body": "Use J(w)=w², start w=4, and choose η=0.1.",
+      "steps": [
+        "Gradient 2w=8, so the first update gives w=4−0.1×8=3.2.",
+        "The loss drops from 16 to 10.24; the next weight is 2.56.",
+        "At η=1, the weight alternates between 4 and −4 and loss stays 16. At η>1, its magnitude grows."
+      ]
+    },
+    "pitfalls": [
+      "Updating one weight before computing the others' gradients accidentally changes the intended simultaneous update.",
+      "A loss that decreases in training may still overfit. Use validation and early stopping when appropriate."
+    ],
+    "code": "w, rate = 4.0, 0.1\nfor step in range(8):\n    print(step, 'w=',round(w,4),'loss=',round(w*w,4))\n    w = w-rate*2*w",
+    "exercise": "Try rates 0.01, 0.5, and 1.1. Explain each trajectory for J(w)=w².",
+    "solution": "0.01 converges slowly; 0.5 reaches zero in one exact arithmetic step; 1.1 multiplies w by −1.2 and diverges with alternating signs.",
+    "quiz": {
+      "question": "What does the learning rate directly control?",
+      "options": [
+        "The number of classes",
+        "The size of a gradient-based parameter update",
+        "The test-set size"
+      ],
+      "answer": 1,
+      "explanation": "The rate multiplies the gradient. Its useful range depends on curvature and feature scale."
+    },
+    "sources": [
+      {
+        "title": "D2L: Gradient descent",
+        "url": "https://d2l.ai/chapter_optimization/gd.html"
+      }
+    ]
+  },
+  {
+    "id": "regularization",
+    "module": "supervised",
+    "title": "Overfitting, bias, and regularization",
+    "summary": "Learn patterns that survive beyond the training sample.",
+    "minutes": 35,
+    "intuition": [
+      "A flexible model can fit random fluctuations as though they were useful signal. Overfitting appears when training performance improves while held-out performance worsens. Underfitting appears when the model misses systematic structure even in training.",
+      "Regularization expresses a preference for some solutions over others. L2 discourages large coefficients smoothly; L1 can drive coefficients exactly to zero. Early stopping, data augmentation, and architecture constraints also restrict effective flexibility. These methods trade training fit for more stable generalization, but must be selected with validation."
+    ],
+    "steps": [
+      "Plot training and validation performance as model complexity or training duration changes.",
+      "Add an appropriate penalty and tune its strength using training/validation data. Scale features before comparing coefficient penalties.",
+      "Keep a final test set untouched until the selection procedure is finished. Diagnose both bias and variance through learning curves, not a single score."
+    ],
+    "formula": "J_{\\text{ridge}}(w)=\\frac1n\\|Xw-y\\|_2^2+\\lambda\\|w\\|_2^2,\\qquad J_{\\text{lasso}}=\\frac1n\\|Xw-y\\|_2^2+\\lambda\\|w\\|_1",
+    "symbols": "λ controls penalty strength. Here the intercept is omitted from the penalty. Different libraries scale the loss differently, so their numerical regularization settings are not automatically comparable.",
+    "example": {
+      "title": "Shrink a one-weight model",
+      "body": "For one observation x=1,y=4, minimize (w−4)²+λw².",
+      "steps": [
+        "Differentiate: 2(w−4)+2λw=0.",
+        "Solve for w=4/(1+λ).",
+        "λ=0 gives w=4; λ=1 gives w=2. The fit becomes less exact as the preference for smaller weights strengthens."
+      ]
+    },
+    "pitfalls": [
+      "Regularization is not a repair for target leakage.",
+      "Adding more noisy features can harm a model, and a zero L1 coefficient does not prove a feature has no causal role."
+    ],
+    "code": "for strength in [0,0.1,1,10]:\n    w = 4/(1+strength)\n    fit_loss = (w-4)**2\n    print('lambda=',strength,'w=',round(w,3),'fit loss=',round(fit_loss,3))",
+    "exercise": "For the example, find λ that makes w=1.",
+    "solution": "1=4/(1+λ), so λ=3. This is a training-objective calculation; the best predictive λ still requires validation.",
+    "quiz": {
+      "question": "Which pattern most strongly suggests overfitting?",
+      "options": [
+        "High training and validation errors",
+        "Falling training error with rising validation error",
+        "Identical predictions from every model"
+      ],
+      "answer": 1,
+      "explanation": "The model is improving on seen data while losing generalization."
+    },
+    "sources": [
+      {
+        "title": "scikit-learn: Ridge and Lasso",
+        "url": "https://scikit-learn.org/stable/modules/linear_model.html#ridge-regression-and-classification"
+      }
+    ]
+  },
+  {
+    "id": "logistic-regression",
+    "module": "supervised",
+    "title": "Logistic regression and decision boundaries",
+    "summary": "Turn a linear score into a probability.",
+    "minutes": 38,
+    "lab": "logistic-regression",
+    "intuition": [
+      "Classification predicts a category. Logistic regression starts with a weighted sum of inputs, then passes it through a sigmoid to obtain a number between zero and one. That number models the probability of a chosen positive class.",
+      "The model learns by minimizing binary cross-entropy. Prediction and decision are separate: probability 0.4 can lead to a positive decision if the threshold is 0.3. Choose the threshold based on costs and validation evidence. A linear decision boundary can be appropriate even though the probability curve itself is nonlinear."
+    ],
+    "steps": [
+      "Encode a binary target and fit scaled numeric or appropriately encoded categorical features.",
+      "Compute a logit z=wᵀx+b and probability p=1/(1+exp(−z)). The logit is the log-odds under the model.",
+      "Train with log loss and choose a threshold on validation data. Inspect calibration and performance across important subgroups."
+    ],
+    "formula": "p=\\sigma(w^Tx+b),\\quad \\ell=-y\\log p-(1-y)\\log(1-p),\\quad \\nabla_w\\ell=(p-y)x",
+    "symbols": "y is zero or one; p is the predicted probability of class one. At threshold 0.5, the boundary is wᵀx+b=0. Other thresholds correspond to logit(threshold).",
+    "example": {
+      "title": "A probability is not a verdict",
+      "body": "Suppose z=1.2 for an incoming support message.",
+      "steps": [
+        "Compute p=1/(1+e⁻¹·²)≈0.7685.",
+        "At threshold 0.5, route it to the positive category. At 0.8, do not.",
+        "If the true label is one, its log loss is −ln(0.7685)≈0.2633."
+      ]
+    },
+    "pitfalls": [
+      "A classifier score is not automatically a well-calibrated probability.",
+      "Class imbalance changes how useful accuracy and a default threshold are."
+    ],
+    "code": "from math import exp, log\nz = 1.2\np = 1/(1+exp(-z))\nprint('Probability:',p)\nprint('Positive at 0.5:',p>=0.5)\nprint('Positive at 0.8:',p>=0.8)\nprint('Loss if target=1:',-log(p))",
+    "exercise": "What probability corresponds to z=0? Explain the resulting boundary.",
+    "solution": "The sigmoid gives 0.5. Thus a 0.5-threshold boundary contains inputs whose weighted sum plus bias is zero.",
+    "quiz": {
+      "question": "Increasing the positive threshold usually does what?",
+      "options": [
+        "Predicts positive for fewer examples",
+        "Changes all training labels",
+        "Guarantees higher recall"
+      ],
+      "answer": 0,
+      "explanation": "Fewer probabilities exceed a larger threshold; recall generally cannot increase on a fixed dataset."
+    },
+    "sources": [
+      {
+        "title": "Google: Logistic regression",
+        "url": "https://developers.google.com/machine-learning/crash-course/logistic-regression"
+      }
+    ]
+  },
+  {
+    "id": "evaluation",
+    "module": "supervised",
+    "title": "Evaluate the decision, not just the score",
+    "summary": "Precision, recall, F1, ROC, PR, calibration, and regression error.",
+    "minutes": 38,
+    "intuition": [
+      "A metric compresses behavior, so choose what it compresses carefully. Accuracy is the fraction correct but can look excellent when a model always predicts a dominant class. Precision asks how many positive predictions were correct; recall asks how many actual positives were found.",
+      "For regression, MAE measures typical absolute error in target units, while RMSE emphasizes larger errors. For classification, ROC and precision-recall curves show behavior across thresholds. Precision-recall is often more revealing for rare positive classes. Evaluate probability calibration separately from ranking."
+    ],
+    "steps": [
+      "Create a confusion matrix using a declared positive class and threshold.",
+      "Choose metrics and acceptable tradeoffs before repeatedly examining validation results. Include group-level checks and uncertainty.",
+      "After selecting the model and threshold, evaluate once on the final held-out test. Report deployment-relevant costs, not only a benchmark rank."
+    ],
+    "formula": "P=\\frac{TP}{TP+FP},\\quad R=\\frac{TP}{TP+FN},\\quad F_1=\\frac{2PR}{P+R},\\quad RMSE=\\sqrt{\\frac1n\\sum_i(\\hat y_i-y_i)^2}",
+    "symbols": "TP: true positives; FP: false positives; FN: missed positives. Zero denominators require a defined reporting policy. F1 balances precision and recall but ignores true negatives and may not match unequal business costs.",
+    "example": {
+      "title": "A document filter",
+      "body": "The filter retrieves 30 relevant and 10 irrelevant documents, while missing 20 relevant documents.",
+      "steps": [
+        "Precision = 30/(30+10)=0.75.",
+        "Recall = 30/(30+20)=0.60.",
+        "F1 = 2×0.75×0.60/(0.75+0.60)≈0.667. Lowering the threshold may recover more relevant documents at the expense of extra irrelevant ones."
+      ]
+    },
+    "pitfalls": [
+      "Selecting a threshold on the test set leaks information into the evaluation.",
+      "AUC describes ranking over thresholds; it does not directly describe quality at the threshold you will deploy."
+    ],
+    "code": "tp, fp, fn = 30, 10, 20\nprecision = tp/(tp+fp)\nrecall = tp/(tp+fn)\nf1 = 2*precision*recall/(precision+recall)\nprint('Precision:',precision,'Recall:',recall,'F1:',f1)",
+    "exercise": "A dataset has 990 negatives and 10 positives. What accuracy does always-negative achieve, and what is its positive recall?",
+    "solution": "99% accuracy and zero positive recall. A high accuracy can conceal complete failure on the event of interest.",
+    "quiz": {
+      "question": "Recall measures…",
+      "options": [
+        "Correct positives among predicted positives",
+        "Found positives among actual positives",
+        "The average predicted probability"
+      ],
+      "answer": 1,
+      "explanation": "Recall is TP/(TP+FN), so it asks how much of the positive class was recovered."
+    },
+    "sources": [
+      {
+        "title": "scikit-learn: Model evaluation",
+        "url": "https://scikit-learn.org/stable/modules/model_evaluation.html"
+      }
+    ]
+  }
+]

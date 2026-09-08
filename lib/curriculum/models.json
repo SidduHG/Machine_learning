@@ -1,0 +1,254 @@
+[
+  {
+    "id": "knn",
+    "module": "models",
+    "title": "Nearest neighbors: learning by comparison",
+    "summary": "Let similar examples vote, and question what similar means.",
+    "minutes": 28,
+    "lab": "knn",
+    "intuition": [
+      "K-nearest neighbors stores training examples and predicts using nearby observations. For classification, neighbors vote; for regression, their targets are averaged, possibly with distance weighting. It is simple to explain but pushes much of its cost to prediction time.",
+      "The distance function defines similarity. A feature measured in thousands can dominate one measured in fractions unless you scale deliberately. In high dimensions, distances may become less informative, and irrelevant features can drown out meaningful neighborhoods. Choosing k balances local sensitivity with smoothing."
+    ],
+    "steps": [
+      "Fit preprocessing on training data, then transform both stored examples and query points consistently.",
+      "Compute query-to-training distances and select the k smallest. Resolve equal distances and tied votes deterministically.",
+      "Predict from neighbors and choose k using cross-validation. Consider approximate neighbor indexes for large datasets, measuring their recall-speed tradeoff."
+    ],
+    "formula": "d(x,z)=\\sqrt{\\sum_j(x_j-z_j)^2},\\qquad \\hat y(x)=\\operatorname{mode}\\{y_i:i\\in N_k(x)\\}",
+    "symbols": "Nₖ(x) indexes k nearest training examples. Euclidean distance is one choice; cosine similarity often suits normalized embeddings. k cannot exceed the number of stored examples.",
+    "example": {
+      "title": "A tiny one-dimensional neighborhood",
+      "body": "Training positions [1,2,4,7,8] have labels [A,A,B,B,B]. Classify query 3.",
+      "steps": [
+        "Distances are [2,1,1,4,5].",
+        "The nearest three are positions 2,4,1 with votes A,B,A.",
+        "The prediction is A. With five neighbors the prediction is B, showing how k changes the neighborhood scale."
+      ]
+    },
+    "pitfalls": [
+      "Using the query itself as a training neighbor during evaluation gives overly optimistic results.",
+      "An odd k avoids some binary vote ties, but distance ties and multiclass vote ties still need policies."
+    ],
+    "code": "points = [(1,'A'),(2,'A'),(4,'B'),(7,'B'),(8,'B')]\nquery, k = 3, 3\nneighbors = sorted(points,key=lambda item:abs(item[0]-query))[:k]\nvotes = {label:sum(y==label for _,y in neighbors) for label in ['A','B']}\nprint(neighbors, votes)\nprint('Prediction:',max(votes,key=votes.get))",
+    "exercise": "Classify query 6 with k=3.",
+    "solution": "Its nearest positions are 7,4,8, all labeled B, so it predicts B.",
+    "quiz": {
+      "question": "Why does feature scaling matter for Euclidean kNN?",
+      "options": [
+        "It determines each feature's contribution to distance",
+        "It creates labels",
+        "It eliminates prediction cost"
+      ],
+      "answer": 0,
+      "explanation": "A large numerical scale can dominate the sum of squared coordinate differences."
+    },
+    "sources": [
+      {
+        "title": "scikit-learn: Nearest neighbors",
+        "url": "https://scikit-learn.org/stable/modules/neighbors.html"
+      }
+    ]
+  },
+  {
+    "id": "naive-bayes",
+    "module": "models",
+    "title": "Naive Bayes and text classification",
+    "summary": "A surprisingly useful model with a strong independence assumption.",
+    "minutes": 30,
+    "intuition": [
+      "Naive Bayes combines class priors with feature likelihoods. Its simplifying assumption is that features are conditionally independent given the class. Words in a message are not truly independent, but this approximation can still produce useful lightweight text classifiers.",
+      "For multinomial Naive Bayes, features are nonnegative counts. Training counts words by class and estimates their conditional probabilities. At prediction time, log probabilities turn products into sums and avoid numeric underflow. Smoothing prevents a word absent from one class from forcing that class probability to zero."
+    ],
+    "steps": [
+      "Build a training vocabulary and count tokens per class. Reserve a policy for unseen words.",
+      "Apply additive smoothing to likelihoods and estimate class priors.",
+      "Add log prior and count-weighted log likelihoods. Choose the largest score; normalize with a stable operation if posterior-like probabilities are needed."
+    ],
+    "formula": "\\log P(c\\mid x)\\propto\\log P(c)+\\sum_j x_j\\log\\frac{N_{cj}+\\alpha}{N_c+\\alpha V}",
+    "symbols": "Ncj is the count of token j in class c, Nc the total token count in that class, V vocabulary size, and α smoothing strength. The conditional-independence assumption can make estimated probabilities overconfident.",
+    "example": {
+      "title": "An unseen word should not erase a class",
+      "body": "A class contains 8 total tokens across a vocabulary of 4 words. One vocabulary word never appeared in that class.",
+      "steps": [
+        "Without smoothing, its conditional probability is 0/8=0.",
+        "With α=1, its probability becomes (0+1)/(8+4)=1/12.",
+        "A word observed three times gets (3+1)/(8+4)=1/3. All vocabulary probabilities still sum to one."
+      ]
+    },
+    "pitfalls": [
+      "Multinomial Naive Bayes is not appropriate for arbitrary negative features.",
+      "Correlated repeated evidence can inflate confidence; assess calibration before treating scores as reliable probabilities."
+    ],
+    "code": "from math import log\ncounts = [3,3,2,0]\nalpha = 1\nprobabilities = [(n+alpha)/(sum(counts)+alpha*len(counts)) for n in counts]\nprint('Smoothed probabilities:',probabilities)\nprint('Log score for last token:',log(probabilities[-1]))",
+    "exercise": "Explain why a vocabulary built from all data before splitting can contaminate evaluation.",
+    "solution": "Vocabulary construction observes which tokens occur in held-out records. Fit the text pipeline within training folds to preserve a clean validation process.",
+    "quiz": {
+      "question": "What does additive smoothing prevent?",
+      "options": [
+        "All model errors",
+        "Zero likelihood for unseen class-token combinations",
+        "The need for a training split"
+      ],
+      "answer": 1,
+      "explanation": "Adding a positive pseudocount avoids zero conditional token probabilities."
+    },
+    "sources": [
+      {
+        "title": "scikit-learn: Naive Bayes",
+        "url": "https://scikit-learn.org/stable/modules/naive_bayes.html"
+      }
+    ]
+  },
+  {
+    "id": "decision-trees",
+    "module": "models",
+    "title": "Decision trees: asking better questions",
+    "summary": "Partition data with interpretable if-then rules.",
+    "minutes": 35,
+    "lab": "decision-tree",
+    "intuition": [
+      "A decision tree repeatedly asks questions such as 'is distance below 4 km?' Each split partitions a region of the feature space, and each leaf predicts from the training examples that reach it. Trees can express nonlinear interactions without manually constructing every product feature.",
+      "A greedy tree chooses the best immediate split by how much it reduces impurity or regression error. This is not a search over every possible complete tree. Deep trees can memorize small pockets of data; depth limits, minimum leaf sizes, and pruning control complexity."
+    ],
+    "steps": [
+      "At a node, enumerate candidate feature thresholds. Send each training example left or right.",
+      "Compute weighted child impurity and compare it with the parent impurity. Choose a split with useful gain.",
+      "Recurse until stopping criteria apply. At a classification leaf, report class proportions; for squared-error regression, predict the target mean."
+    ],
+    "formula": "G(S)=1-\\sum_c p_c^2,\\qquad \\Delta G=G(S)-\\frac{|L|}{|S|}G(L)-\\frac{|R|}{|S|}G(R)",
+    "symbols": "G is Gini impurity and pc the fraction of class c in a node. L and R are child subsets. Empty children are invalid candidates. A pure node has impurity zero.",
+    "example": {
+      "title": "Separate two groups",
+      "body": "Sorted feature values [1,2,3,4] have labels [A,A,B,B]. Try splitting at 2.5.",
+      "steps": [
+        "The parent has pA=pB=0.5, so G=0.5.",
+        "The left child has only A and the right only B; each has G=0.",
+        "The gain is 0.5. A threshold of 1.5 leaves a mixed right child and a smaller gain."
+      ]
+    },
+    "pitfalls": [
+      "A single tree can change substantially after small data changes.",
+      "Impurity-based feature importance can favor high-cardinality features and does not establish causality."
+    ],
+    "code": "def gini(labels):\n    return 1-sum((labels.count(c)/len(labels))**2 for c in set(labels))\nleft, right = ['A','A'], ['B','B']\nparent = left+right\ngain = gini(parent)-len(left)/len(parent)*gini(left)-len(right)/len(parent)*gini(right)\nprint('Parent impurity:',gini(parent),'Gain:',gain)",
+    "exercise": "Compute Gini impurity for labels [A,A,A,B].",
+    "solution": "1−(3/4)²−(1/4)²=0.375. The node is less mixed than an evenly balanced binary node.",
+    "quiz": {
+      "question": "Why weight child impurities by child size?",
+      "options": [
+        "Each example should contribute proportionally",
+        "Large nodes must always be pure",
+        "Weights make all splits equal"
+      ],
+      "answer": 0,
+      "explanation": "An unweighted average would give a tiny child the same influence as a large child."
+    },
+    "sources": [
+      {
+        "title": "scikit-learn: Decision trees",
+        "url": "https://scikit-learn.org/stable/modules/tree.html"
+      }
+    ]
+  },
+  {
+    "id": "ensembles",
+    "module": "models",
+    "title": "Random forests and gradient boosting",
+    "summary": "Combine models by averaging or by correcting errors.",
+    "minutes": 40,
+    "intuition": [
+      "An ensemble combines multiple predictors. Random forests fit many trees using bootstrap samples and random feature subsets, then average predictions or vote. Averaging helps most when individual errors are not perfectly correlated.",
+      "Boosting builds a sequence. Each new learner improves the current ensemble by fitting a direction that reduces the training objective. For squared error, that direction is the residual. For other losses, gradient boosting fits negative gradients. Boosting often excels on tabular data but requires careful control of learning rate, depth, and number of trees."
+    ],
+    "steps": [
+      "Start with a simple single-model baseline and a reproducible validation split.",
+      "For a forest, train diverse trees and average their predictions. Tune leaf size and feature subsampling, not only tree count.",
+      "For boosting, start with a constant prediction, fit a weak learner to residuals or negative gradients, and add a scaled update. Select stopping iteration using validation."
+    ],
+    "formula": "F_M(x)=F_0(x)+\\eta\\sum_{m=1}^{M}h_m(x),\\qquad r_{im}=-\\left.\\frac{\\partial\\ell(y_i,F)}{\\partial F}\\right|_{F=F_{m-1}(x_i)}",
+    "symbols": "F is the ensemble, hm a weak learner, η the shrinkage rate, and rim a pseudo-residual. For ℓ=(y−F)²/2, the pseudo-residual is y−F.",
+    "example": {
+      "title": "One boosting update",
+      "body": "Targets are [3,5,7]. Begin with a constant prediction 5. Suppose a weak learner reproduces residuals [−2,0,2] in this toy case.",
+      "steps": [
+        "Initial squared errors are [4,0,4], giving MSE 8/3.",
+        "With η=0.5, predictions become [4,5,6].",
+        "Residual magnitudes halve; MSE drops to 2/3. Real weak learners only approximate the residual pattern."
+      ]
+    },
+    "pitfalls": [
+      "Adding many trees does not fix leakage or the wrong split.",
+      "Forest averaging mainly reduces variance; boosting can still overfit and needs validation."
+    ],
+    "code": "y = [3,5,7]\npred = [5,5,5]\nresidual = [a-b for a,b in zip(y,pred)]\nupdated = [p+0.5*r for p,r in zip(pred,residual)]\nprint('Updated:',updated)\nprint('MSE:',sum((a-b)**2 for a,b in zip(y,updated))/len(y))",
+    "exercise": "Explain why averaging two perfectly identical models does not reduce their error.",
+    "solution": "Their predictions and errors are perfectly correlated. The average is exactly the same prediction, so diversity is necessary for a variance reduction.",
+    "quiz": {
+      "question": "How does boosting differ from a random forest?",
+      "options": [
+        "Boosting builds sequential corrections",
+        "Boosting never uses trees",
+        "Forests train on test labels"
+      ],
+      "answer": 0,
+      "explanation": "Boosting's next learner depends on the current ensemble; forest trees are designed to provide diverse predictions for averaging."
+    },
+    "sources": [
+      {
+        "title": "scikit-learn: Ensembles",
+        "url": "https://scikit-learn.org/stable/modules/ensemble.html"
+      }
+    ]
+  },
+  {
+    "id": "svm",
+    "module": "models",
+    "title": "Support vector machines and kernels",
+    "summary": "Find a boundary with room to spare.",
+    "minutes": 35,
+    "intuition": [
+      "A linear support vector machine seeks a separating boundary with a large margin. Only some examples, the support vectors, determine the fitted boundary directly. The soft-margin version allows violations while penalizing them, balancing a wide margin against training mistakes.",
+      "Kernels let the algorithm compare inputs as though they were mapped to a richer feature space, without explicitly constructing every transformed coordinate. A radial basis function kernel gives high similarity to nearby points. Kernel flexibility and computational cost both increase the need for validation and careful scaling."
+    ],
+    "steps": [
+      "Scale numeric features using training statistics. Encode binary labels as −1 and +1 for the mathematical formulation.",
+      "Minimize a weight penalty plus hinge losses. A point with signed score at least 1 incurs zero hinge loss.",
+      "Tune C and kernel parameters by validation. For larger datasets, compare a linear model or explicit approximate features to an expensive kernel model."
+    ],
+    "formula": "\\min_{w,b}\\frac12\\|w\\|^2+C\\sum_i\\max(0,1-y_i(w^Tx_i+b)),\\quad K(x,z)=e^{-\\gamma\\|x-z\\|^2}",
+    "symbols": "C weights margin violations: larger C tolerates them less. γ controls the RBF similarity scale. The geometric margin between canonical parallel boundaries is 2/||w||.",
+    "example": {
+      "title": "Correct but still within the margin",
+      "body": "A positive example has y=1. Compare scores 1.5, 0.4, and −0.5.",
+      "steps": [
+        "Score 1.5 gives hinge loss max(0,1−1.5)=0.",
+        "Score 0.4 predicts the correct sign but has loss 0.6 because it is inside the margin.",
+        "Score −0.5 predicts the wrong sign and has loss 1.5."
+      ]
+    },
+    "pitfalls": [
+      "SVM decision scores are not probabilities without a calibration procedure.",
+      "An extremely large RBF γ can create very local boundaries that memorize training data."
+    ],
+    "code": "label = 1\nfor score in [1.5,0.4,-0.5]:\n    print('Score:',score,'Hinge loss:',max(0,1-label*score))",
+    "exercise": "For y=−1 and score=−2, compute the hinge loss.",
+    "solution": "The signed score is (−1)(−2)=2, so the loss is max(0,1−2)=0.",
+    "quiz": {
+      "question": "A correctly classified point can have positive hinge loss because…",
+      "options": [
+        "It lies within the margin",
+        "All correct points incur loss 1",
+        "Its label must be missing"
+      ],
+      "answer": 0,
+      "explanation": "Hinge loss encourages confidence measured by the signed margin, not merely the correct sign."
+    },
+    "sources": [
+      {
+        "title": "scikit-learn: Support vector machines",
+        "url": "https://scikit-learn.org/stable/modules/svm.html"
+      }
+    ]
+  }
+]

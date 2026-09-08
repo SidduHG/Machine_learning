@@ -1,0 +1,252 @@
+[
+  {
+    "id": "attention",
+    "module": "modern-ai",
+    "title": "Attention: learning what to look at",
+    "summary": "Queries choose how to mix information from values.",
+    "minutes": 40,
+    "lab": "attention",
+    "intuition": [
+      "Attention produces a context-dependent weighted average. A query represents what a position is looking for, keys describe what other positions offer, and values carry the information to combine. Matching scores become nonnegative weights that sum to one.",
+      "In self-attention, queries, keys, and values all come from the same sequence through learned projections. In cross-attention, queries come from one source and keys/values from another. Attention weights describe an internal mixing operation; they are not automatically faithful explanations of a model's final decision."
+    ],
+    "steps": [
+      "Project representations into query, key, and value vectors with compatible dimensions.",
+      "Compute query-key dot products and scale by √dk. Apply masks before softmax so forbidden positions receive zero weight.",
+      "Multiply attention weights by values. Multiple heads use distinct learned projections, letting the layer represent different relationships."
+    ],
+    "formula": "\\operatorname{Attention}(Q,K,V)=\\operatorname{softmax}\\left(\\frac{QK^T}{\\sqrt{d_k}}+M\\right)V",
+    "symbols": "Rows of Q are queries, rows of K keys, and rows of V values. M is zero for allowed positions and effectively negative infinity for masked positions. Softmax is applied across keys for each query.",
+    "example": {
+      "title": "Mix two values",
+      "body": "One query gives unscaled key scores [2,0] with dk=1 and values [10,20].",
+      "steps": [
+        "Softmax weights are [e²/(e²+1),1/(e²+1)]≈[0.8808,0.1192].",
+        "The output is 0.8808×10 + 0.1192×20≈11.192.",
+        "Making both scores equal gives weights [0.5,0.5] and output 15."
+      ]
+    },
+    "pitfalls": [
+      "A causal language model must mask future positions during training.",
+      "Unstable exponentials overflow; subtract the largest unmasked score before exponentiating."
+    ],
+    "code": "from math import exp\nscores, values = [2,0], [10,20]\nexps = [exp(s-max(scores)) for s in scores]\nweights = [e/sum(exps) for e in exps]\nprint('Weights:',weights)\nprint('Context:',sum(a*v for a,v in zip(weights,values)))",
+    "exercise": "Mask the second key. What are the weights and output?",
+    "solution": "The allowed first key receives weight 1, the masked key weight 0, and the output becomes 10.",
+    "quiz": {
+      "question": "Softmax attention weights for one query sum to…",
+      "options": [
+        "The sequence length",
+        "One",
+        "Zero"
+      ],
+      "answer": 1,
+      "explanation": "They form a normalized distribution over the allowed keys, assuming at least one key is allowed."
+    },
+    "sources": [
+      {
+        "title": "Attention Is All You Need",
+        "url": "https://arxiv.org/abs/1706.03762"
+      }
+    ]
+  },
+  {
+    "id": "transformers",
+    "module": "modern-ai",
+    "title": "Transformers and language modeling",
+    "summary": "Connect tokens, attention, residuals, and next-token prediction.",
+    "minutes": 42,
+    "intuition": [
+      "A transformer turns tokens into vectors, repeatedly mixes contextual information through attention and feed-forward layers, then maps representations to task outputs. Positional information tells the model about order; self-attention alone does not inherently distinguish permutations.",
+      "An autoregressive language model predicts the next token given earlier tokens. Training supplies the correct preceding tokens and computes loss over many positions in parallel using a causal mask. Generation instead appends one sampled or selected token at a time. Fluent text is not proof of factual accuracy."
+    ],
+    "steps": [
+      "Tokenize text and map token IDs to embeddings. Respect the model's actual tokenizer and context length.",
+      "Apply causal attention, feed-forward sublayers, residual connections, and normalization in the architecture's defined order.",
+      "Project to vocabulary logits, train on shifted next-token targets, and generate under a decoding strategy. Measure task quality, factuality, latency, and token cost separately."
+    ],
+    "formula": "P(x_1,\\ldots,x_T)=\\prod_{t=1}^{T}P(x_t\\mid x_{<t}),\\qquad L=-\\frac1T\\sum_t\\log P(x_t\\mid x_{<t})",
+    "symbols": "xt is a token, not necessarily a word. Teacher forcing trains with observed previous tokens. Temperature rescales logits before sampling; it changes the output distribution, not the model's knowledge.",
+    "example": {
+      "title": "Shift the target by one",
+      "body": "For token IDs [12,8,31,4], construct an input and next-token target sequence.",
+      "steps": [
+        "Input positions contain [12,8,31].",
+        "Their targets are [8,31,4].",
+        "At the second input position, the causal mask permits tokens 12 and 8, but blocks token 31 from being visible as input context."
+      ]
+    },
+    "pitfalls": [
+      "A test benchmark contaminated by training text overstates generalization.",
+      "A model's verbal confidence is not a calibrated factuality score."
+    ],
+    "code": "tokens = [12,8,31,4]\ninputs, targets = tokens[:-1], tokens[1:]\nprint('Inputs:',inputs,'Targets:',targets)\nmask = [[j<=i for j in range(len(inputs))] for i in range(len(inputs))]\nprint('Allowed attention positions:',mask)",
+    "exercise": "Why would allowing future tokens during next-token training make the evaluation misleading?",
+    "solution": "The model could directly read information about the answer that is unavailable during autoregressive generation. The training task would no longer match deployment.",
+    "quiz": {
+      "question": "A tokenizer token is always a complete word.",
+      "options": [
+        "True",
+        "False"
+      ],
+      "answer": 1,
+      "explanation": "Tokens may be words, subwords, punctuation, bytes, or other units depending on the tokenizer."
+    },
+    "sources": [
+      {
+        "title": "D2L: Transformer architecture",
+        "url": "https://d2l.ai/chapter_attention-mechanisms-and-transformers/transformer.html"
+      }
+    ]
+  },
+  {
+    "id": "embeddings",
+    "module": "modern-ai",
+    "title": "Embeddings and semantic retrieval",
+    "summary": "Represent meaning as a geometry you can search.",
+    "minutes": 32,
+    "intuition": [
+      "An embedding maps an item—text, image, user, or product—to a vector whose geometry is useful for a task. Similarity depends on how the embedding model was trained. A vector does not contain a universally correct definition of meaning.",
+      "Semantic retrieval embeds a query and candidate items into a compatible space, then searches for nearby vectors. Cosine similarity compares direction, often after normalization. Approximate indexes trade exact nearest-neighbor retrieval for speed and scale. Evaluate whether retrieved items actually help users, not just whether the vectors look clustered."
+    ],
+    "steps": [
+      "Choose one compatible embedding model and preprocessing scheme for both documents and queries.",
+      "Chunk documents into useful units with source metadata. Compute and version vectors; normalize if the similarity scheme requires it.",
+      "Retrieve candidates, optionally rerank them, and measure relevance at k. Re-embed or migrate the index deliberately when changing models."
+    ],
+    "formula": "\\operatorname{cos}(a,b)=\\frac{a^Tb}{\\|a\\|\\|b\\|},\\qquad \\operatorname{Recall@k}=\\frac{\\text{relevant items retrieved in top k}}{\\text{all relevant items}}",
+    "symbols": "Cosine is undefined for a zero-length vector. For normalized vectors, cosine similarity equals dot product. Recall@k requires relevance judgments, not only a distance threshold.",
+    "example": {
+      "title": "Magnitude versus direction",
+      "body": "Compare query [1,0] with candidates A=[2,0] and B=[1,1].",
+      "steps": [
+        "Cosine(query,A)=1: their directions match despite different lengths.",
+        "Cosine(query,B)=1/√2≈0.707.",
+        "If you instead used raw dot products, both score 2? No: A scores 2 and B scores 1. Similarity choice changes what vector magnitude contributes."
+      ]
+    },
+    "pitfalls": [
+      "Vectors from different embedding models are not generally comparable.",
+      "Nearest does not mean relevant; every query has a nearest vector even when the collection contains no useful answer."
+    ],
+    "code": "from math import sqrt\ndef cosine(a,b):\n    return sum(x*y for x,y in zip(a,b))/(sqrt(sum(x*x for x in a))*sqrt(sum(y*y for y in b)))\nfor candidate in [[2,0],[1,1]]:\n    print(candidate,cosine([1,0],candidate))",
+    "exercise": "Compute cosine similarity between [1,0] and [−1,0].",
+    "solution": "The dot product is −1 and both norms are 1, so cosine is −1: opposite directions.",
+    "quiz": {
+      "question": "After changing embedding models, you should generally…",
+      "options": [
+        "Mix new query vectors with the old index without checking",
+        "Re-embed or explicitly validate compatibility",
+        "Delete relevance evaluation"
+      ],
+      "answer": 1,
+      "explanation": "Different models define different coordinate spaces and dimensions."
+    },
+    "sources": [
+      {
+        "title": "Sentence-BERT paper",
+        "url": "https://arxiv.org/abs/1908.10084"
+      }
+    ]
+  },
+  {
+    "id": "rag",
+    "module": "modern-ai",
+    "title": "Retrieval-augmented generation",
+    "summary": "Give a language model relevant evidence and verify the answer.",
+    "minutes": 40,
+    "intuition": [
+      "RAG retrieves external passages and provides them as context for a language model. This can make a system more useful on a specific collection and easier to update without retraining the model. Retrieval and generation are separate failure points: the correct passage may be missing, poorly ranked, ignored, or misrepresented.",
+      "A grounded system preserves source identifiers and distinguishes supported claims from guesses. Retrieved text is untrusted data, not authority to change the assistant's instructions. Evaluate answer correctness, citation support, retrieval coverage, abstention, and latency as separate dimensions."
+    ],
+    "steps": [
+      "Ingest permitted documents, preserve metadata, chunk with useful context boundaries, and build lexical/vector retrieval.",
+      "Retrieve candidates for the question and optionally rerank. Apply access controls before passages enter the generation context.",
+      "Ask the generator to answer from supplied evidence and cite sources. Check support and allow an explicit insufficient-evidence response. Log useful diagnostics while minimizing retained personal data."
+    ],
+    "formula": "q\\rightarrow\\operatorname{retrieve}(q,D)\\rightarrow C,\\qquad \\hat a=\\operatorname{generate}(q,C),\\qquad \\operatorname{Precision@k}=\\frac{\\text{relevant retrieved}}{k}",
+    "symbols": "D is the permitted corpus and C the retrieved context. RAG is a system pattern, not a guarantee of truthful output. The toy example below demonstrates lexical retrieval, not an embedding model or a language model.",
+    "example": {
+      "title": "Retrieve before answering",
+      "body": "A small manual contains passages about resets, billing, and exports. The query asks how to export progress.",
+      "steps": [
+        "Score passages for query-term overlap as a transparent baseline.",
+        "Return the export passage with its stable source ID.",
+        "A generator, if connected, should use that evidence. If there is no relevant passage, the system should say so instead of inventing an answer."
+      ]
+    },
+    "pitfalls": [
+      "A citation link can be real while the attached claim is unsupported.",
+      "Prompt injection in retrieved documents must not gain instruction authority."
+    ],
+    "code": "docs = {'reset':'reset a training run','billing':'view a payment invoice','export':'export your learning progress as a file'}\nquery = set('export progress'.split())\nscores = {key:len(query & set(text.split())) for key,text in docs.items()}\nbest = max(scores,key=scores.get)\nprint('Source:',best,'Evidence:',docs[best])",
+    "exercise": "Design one evaluation where retrieval succeeds but generation fails.",
+    "solution": "The correct source says the deadline is Friday, but the answer says Thursday or cites an unrelated sentence. Retrieval relevance passes; answer correctness or citation support fails.",
+    "quiz": {
+      "question": "What should retrieved text be treated as?",
+      "options": [
+        "Untrusted evidence to interpret",
+        "Instructions that override system behavior",
+        "A guarantee that every generated claim is true"
+      ],
+      "answer": 0,
+      "explanation": "External content can contain mistakes or malicious instructions. It supplies evidence, not control authority."
+    },
+    "sources": [
+      {
+        "title": "Retrieval-Augmented Generation paper",
+        "url": "https://arxiv.org/abs/2005.11401"
+      }
+    ]
+  },
+  {
+    "id": "fine-tuning",
+    "module": "modern-ai",
+    "title": "Fine-tuning and adapting a model",
+    "summary": "Choose between prompting, retrieval, and parameter updates.",
+    "minutes": 35,
+    "intuition": [
+      "Fine-tuning updates a pretrained model using additional examples. It can teach a task format, style, or specialized behavior, but it is not always the best way to add changing factual knowledge. Compare prompting and retrieval baselines first.",
+      "Parameter-efficient methods such as LoRA learn small low-rank updates to selected weight matrices while freezing the base weights. This can reduce trainable parameters and optimizer-state memory, though the frozen model still occupies memory and inference has its own costs. Data quality and evaluation often dominate the choice of adaptation method."
+    ],
+    "steps": [
+      "Define a measurable behavioral gap and assemble permitted, representative training examples. Separate evaluation by source, entity, or time to avoid near duplicates.",
+      "Establish prompting and retrieval baselines. If parameter updates are justified, choose full fine-tuning or an efficient adapter with a controlled training budget.",
+      "Monitor overfitting, forgetting, and regressions on broader behavior. Version the base model, tokenizer, data, adapter, and evaluation results together."
+    ],
+    "formula": "W'=W+\\Delta W,\\qquad \\Delta W=BA,\\quad B\\in\\mathbb{R}^{d\\times r},\\ A\\in\\mathbb{R}^{r\\times k},\\ r\\ll\\min(d,k)",
+    "symbols": "A and B are learned low-rank factors. Their parameter count is r(d+k), compared with dk for a full d-by-k update. LoRA implementations also include a scaling factor and selected target modules.",
+    "example": {
+      "title": "Count an adapter",
+      "body": "A 1024×1024 matrix has 1,048,576 entries. Choose rank r=8.",
+      "steps": [
+        "A has 8×1024 entries and B has 1024×8.",
+        "Together they have 16,384 trainable entries.",
+        "That is 1.5625% of the original matrix's parameter count, excluding biases and other model components."
+      ]
+    },
+    "pitfalls": [
+      "Training on evaluation answers contaminates the benchmark.",
+      "A smaller trainable parameter count is not the same as a tiny total memory footprint."
+    ],
+    "code": "d,k,r = 1024,1024,8\nfull = d*k\nadapter = r*(d+k)\nprint('Full update:',full,'Adapter:',adapter)\nprint('Trainable ratio:',adapter/full)",
+    "exercise": "For a 512×2048 matrix at rank 4, calculate adapter parameters.",
+    "solution": "4×(512+2048)=10,240, compared with 1,048,576 full-matrix entries.",
+    "quiz": {
+      "question": "LoRA mainly reduces…",
+      "options": [
+        "The number of trainable update parameters",
+        "The need for evaluation",
+        "All base-model storage to zero"
+      ],
+      "answer": 0,
+      "explanation": "The base weights remain; low-rank factors represent a smaller learned update."
+    },
+    "sources": [
+      {
+        "title": "LoRA paper",
+        "url": "https://arxiv.org/abs/2106.09685"
+      }
+    ]
+  }
+]
