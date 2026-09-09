@@ -1,0 +1,582 @@
+[
+  {
+    "id": "q01",
+    "lesson": "data-preparation",
+    "topic": "Data leakage",
+    "difficulty": "Intermediate",
+    "question": "You compare ridge regression penalties with 5-fold cross-validation. Before creating folds, you fit a StandardScaler on all development inputs, without using labels. Which procedure gives the cleanest estimate of the candidate pipelines?",
+    "options": [
+      "Keep the scaler because it did not use targets.",
+      "Refit the scaler within each training fold as part of the pipeline.",
+      "Scale each validation fold independently so it has zero mean.",
+      "Only standardize after computing the validation scores."
+    ],
+    "answer": 1,
+    "explanation": "A scaler estimates statistics from observations. Validation inputs must not influence the transformation used by that fold's trained model.",
+    "rationales": [
+      "Label-free preprocessing can still use held-out distribution information.",
+      "Correct: each fold learns preprocessing and coefficients from its training portion only.",
+      "Independent validation scaling changes the feature coordinate system relative to the trained coefficients.",
+      "The estimator must receive the declared transformed inputs during both fitting and evaluation."
+    ]
+  },
+  {
+    "id": "q02",
+    "lesson": "arrays",
+    "topic": "Array reasoning",
+    "difficulty": "Intermediate",
+    "question": "NumPy predictions have shape (100,1) and targets have shape (100,). What happens when you subtract them directly?",
+    "options": [
+      "A shape error is always raised.",
+      "The result contains 100 correctly paired residuals.",
+      "The result has shape (100,100) through broadcasting.",
+      "The target is automatically converted to shape (100,1)."
+    ],
+    "answer": 2,
+    "explanation": "Trailing dimensions are compared: (100,1) and an implicit (1,100) broadcast to (100,100).",
+    "rationales": [
+      "These shapes are broadcasting-compatible, so no error is required.",
+      "This confuses legal broadcasting with the intended observation-wise pairing.",
+      "Correct: the result compares each column prediction against all target positions.",
+      "Broadcasting does not infer that both arrays represent paired observations."
+    ]
+  },
+  {
+    "id": "q03",
+    "lesson": "linear-regression",
+    "topic": "Regression metrics",
+    "difficulty": "Intermediate",
+    "question": "For targets [2,4,6] and predictions [3,4,5], which pair gives MAE and RMSE respectively?",
+    "options": [
+      "2/3 and sqrt(2/3)",
+      "sqrt(2/3) and 2/3",
+      "2 and sqrt(2)",
+      "0 and 0"
+    ],
+    "answer": 0,
+    "explanation": "Absolute errors are [1,0,1]. Their mean is 2/3; squared errors also average to 2/3, whose square root is RMSE.",
+    "rationales": [
+      "Correct: average first, then take the square root for RMSE.",
+      "The two metric definitions have been swapped.",
+      "These values omit division by the number of observations.",
+      "Signed residuals cancel, but absolute and squared errors do not."
+    ]
+  },
+  {
+    "id": "q04",
+    "lesson": "gradient-descent",
+    "topic": "Optimization",
+    "difficulty": "Advanced",
+    "question": "For J(w)=½(w−3)², fixed-rate gradient descent starts at w=0 with learning rate 1.5. What behavior follows in exact arithmetic?",
+    "options": [
+      "It diverges because every rate above one is unstable.",
+      "It reaches three in exactly one step.",
+      "It converges monotonically from below.",
+      "It oscillates around three with its distance halving each step."
+    ],
+    "answer": 3,
+    "explanation": "The error e=w−3 satisfies e_next=(1−1.5)e=−0.5e. Its sign alternates and its magnitude shrinks.",
+    "rationales": [
+      "The stable range for this particular curvature is 0<η<2.",
+      "A rate of one would reach the optimum in one step for this objective.",
+      "The negative error multiplier forces alternating sides.",
+      "Correct: the multiplier is −0.5, so oscillation and convergence occur together."
+    ]
+  },
+  {
+    "id": "q05",
+    "lesson": "linear-algebra",
+    "topic": "Identifiability",
+    "difficulty": "Advanced",
+    "question": "Two columns of a regression design matrix are exact copies. Without regularization, what is identifiable from predictions based on those columns?",
+    "options": [
+      "Each coefficient separately, provided there are enough rows.",
+      "Their sum, while multiple individual coefficient pairs can give the same predictions.",
+      "Their ratio, but not their sum.",
+      "Neither predictions nor any coefficient combination can ever be computed."
+    ],
+    "answer": 1,
+    "explanation": "If both columns equal x, their contribution is w₁x+w₂x=(w₁+w₂)x. Only the sum affects predictions.",
+    "rationales": [
+      "More rows with the same redundancy do not restore independent columns.",
+      "Correct: individual coefficients are nonunique, although their combined effect can be determined.",
+      "The ratio does not appear in the prediction expression.",
+      "A solver can choose a solution and make predictions even when individual coefficients are not unique."
+    ]
+  },
+  {
+    "id": "q06",
+    "lesson": "logistic-regression",
+    "topic": "Decision costs",
+    "difficulty": "Advanced",
+    "question": "A calibrated classifier gives positive probability 0.2. A false positive costs 1 and a false negative costs 9; correct decisions cost zero and there is no capacity constraint. Which action minimizes expected cost?",
+    "options": [
+      "Predict negative, because 0.2 is below 0.5.",
+      "Either action, because probabilities do not encode costs.",
+      "Predict positive: its expected cost is 0.8 versus 1.8 for negative.",
+      "Predict positive only if the training classes were balanced."
+    ],
+    "answer": 2,
+    "explanation": "Expected positive-action cost is 1×(1−0.2)=0.8. Negative-action cost is 9×0.2=1.8.",
+    "rationales": [
+      "A 0.5 threshold is not optimal under these asymmetric costs.",
+      "Probabilities and stated costs together determine expected cost under the assumptions.",
+      "Correct: the implied threshold is 1/(1+9)=0.1.",
+      "Training balance does not replace the stated calibrated deployment probability and costs."
+    ]
+  },
+  {
+    "id": "q07",
+    "lesson": "logistic-regression",
+    "topic": "Odds",
+    "difficulty": "Intermediate",
+    "question": "A feature change doubles the odds of a positive outcome from an initial probability of 0.25. What is the resulting probability?",
+    "options": ["0.40", "0.50", "0.75", "0.125"],
+    "answer": 0,
+    "explanation": "Initial odds are 0.25/0.75=1/3. Doubling gives 2/3; probability is odds/(1+odds)=0.4.",
+    "rationales": [
+      "Correct: odds and probability require conversion in both directions.",
+      "This incorrectly doubles probability instead of odds.",
+      "This confuses the negative-outcome probability with the updated positive probability.",
+      "Doubling positive odds cannot halve the positive probability."
+    ]
+  },
+  {
+    "id": "q08",
+    "lesson": "evaluation",
+    "topic": "Classification metrics",
+    "difficulty": "Intermediate",
+    "question": "A confusion matrix has TP=8, FP=2, FN=12 and TN=78. Which precision, recall and F1 values are correct?",
+    "options": [
+      "0.4, 0.8, approximately 0.533",
+      "0.8, 0.4, 0.6",
+      "0.86, 0.4, 0.86",
+      "0.8, 0.4, approximately 0.533"
+    ],
+    "answer": 3,
+    "explanation": "Precision=8/10=0.8, recall=8/20=0.4, and F1=16/(16+2+12)=16/30.",
+    "rationales": [
+      "Precision and recall have been exchanged.",
+      "F1 is a harmonic mean, not the arithmetic average 0.6.",
+      "0.86 is accuracy; it is not precision or F1.",
+      "Correct: denominators correspond to predicted positives, actual positives and the F1 count formula."
+    ]
+  },
+  {
+    "id": "q09",
+    "lesson": "model-selection",
+    "topic": "Grouped evaluation",
+    "difficulty": "Advanced",
+    "question": "There are 20 records per customer. Deployment targets entirely new customers. Which validation design most directly matches that claim?",
+    "options": [
+      "Randomly split rows, preserving the positive-class ratio.",
+      "Keep every customer's records within one side of each split.",
+      "Sort by customer ID and alternate individual rows between train and validation.",
+      "Use a more complex model so it cannot memorize customers."
+    ],
+    "answer": 1,
+    "explanation": "New-customer generalization requires holding out entire customers, with appropriate group-aware development and final evaluation.",
+    "rationales": [
+      "Stratification alone does not prevent records of the same customer from crossing the boundary.",
+      "Correct: the split unit matches the intended unseen entity.",
+      "Alternation deliberately puts related records on both sides.",
+      "Model complexity does not repair a split that measures familiar-customer behavior."
+    ]
+  },
+  {
+    "id": "q10",
+    "lesson": "model-selection",
+    "topic": "Selection bias",
+    "difficulty": "Advanced",
+    "question": "You evaluate 200 hyperparameter settings on a final test set and publish the largest score. What is the central problem?",
+    "options": [
+      "Test labels may guide selection even though they were never passed to fit().",
+      "Only the slowest model is biased.",
+      "Trying many settings guarantees the best future model.",
+      "The issue disappears if every model uses the same random seed."
+    ],
+    "answer": 0,
+    "explanation": "Choosing the maximum uses test information and can favor favorable sampling noise. The final test has become part of development.",
+    "rationales": [
+      "Correct: selection is a way of learning from held-out outcomes.",
+      "The issue comes from the selection procedure, not runtime.",
+      "A large search can amplify selection noise rather than guarantee generalization.",
+      "Reproducibility does not restore an untouched assessment boundary."
+    ]
+  },
+  {
+    "id": "q11",
+    "lesson": "regularization",
+    "topic": "Penalized objectives",
+    "difficulty": "Intermediate",
+    "question": "For J(w)=½(w−6)²+(λ/2)w² with λ=2, what is the optimum?",
+    "options": ["6", "4", "2", "0"],
+    "answer": 2,
+    "explanation": "Setting the derivative (w−6)+2w to zero gives 3w=6, hence w=2.",
+    "rationales": [
+      "Six is the unregularized optimum.",
+      "Subtracting λ is a soft-threshold-style intuition, not this ridge solution.",
+      "Correct: ridge divides the unregularized optimum by 1+λ under this convention.",
+      "Finite ridge shrinkage need not set the coefficient exactly to zero."
+    ]
+  },
+  {
+    "id": "q12",
+    "lesson": "knn",
+    "topic": "Distance weighting",
+    "difficulty": "Intermediate",
+    "question": "Two neighbors have distances 1 and 3 and regression targets 10 and 22. What is the normalized inverse-distance prediction?",
+    "options": ["16", "32", "17.333", "13"],
+    "answer": 3,
+    "explanation": "The weighted mean is (10+22/3)/(1+1/3)=13, pulled toward the closer neighbor.",
+    "rationales": [
+      "Sixteen is the uniform average.",
+      "This adds targets without normalization or weighting.",
+      "This is the weighted numerator without division by total weight.",
+      "Correct: weights are 1 and 1/3 and must be normalized."
+    ]
+  },
+  {
+    "id": "q13",
+    "lesson": "naive-bayes",
+    "topic": "Smoothing",
+    "difficulty": "Intermediate",
+    "question": "A multinomial class has 20 training tokens and vocabulary size five. A word occurs zero times. With additive smoothing α=1, what probability is assigned to the word?",
+    "options": ["1/21", "1/25", "0", "1/5"],
+    "answer": 1,
+    "explanation": "The smoothed probability is (0+1)/(20+1×5)=1/25. The denominator reserves one pseudo-count for each of the five vocabulary entries.",
+    "rationales": [
+      "The denominator must add a pseudo-count for every vocabulary entry, not only this word.",
+      "Correct: smoothing preserves normalization across the complete vocabulary.",
+      "Zero is the unsmoothed estimate and defeats the purpose of additive smoothing.",
+      "A uniform 1/5 ignores the observed class counts."
+    ]
+  },
+  {
+    "id": "q14",
+    "lesson": "decision-trees",
+    "topic": "Split impurity",
+    "difficulty": "Advanced",
+    "question": "A parent node has Gini impurity 0.5. A proposed split creates children of sizes nine and one, with impurities 0.49 and zero. What is the Gini gain?",
+    "options": ["0.255", "0.49", "0.059", "0.01"],
+    "answer": 2,
+    "explanation": "Weighted child impurity is 0.9×0.49=0.441, so gain is 0.5−0.441=0.059.",
+    "rationales": [
+      "This incorrectly averages the two child impurities equally.",
+      "This reports the large child's impurity rather than the gain.",
+      "Correct: child size determines its contribution.",
+      "This subtracts the large child alone and ignores the weighting."
+    ]
+  },
+  {
+    "id": "q15",
+    "lesson": "ensembles",
+    "topic": "Ensemble variance",
+    "difficulty": "Advanced",
+    "question": "Ten equal-variance estimators each have error variance four and pairwise error correlation 0.5. Under the equal-correlation formula, what is the variance of their average?",
+    "options": ["2.2", "0.4", "4", "0.2"],
+    "answer": 0,
+    "explanation": "Variance is 4×(0.5+(1−0.5)/10)=2.2. Shared error remains after averaging.",
+    "rationales": [
+      "Correct: the correlated component limits the variance reduction.",
+      "This assumes independent errors and uses 4/10.",
+      "This would correspond to perfectly correlated equal errors.",
+      "This discards the shared component and miscalculates the reducible term."
+    ]
+  },
+  {
+    "id": "q16",
+    "lesson": "ensembles",
+    "topic": "Gradient boosting",
+    "difficulty": "Advanced",
+    "question": "A half-squared-error boosting model predicts [2,5] for targets [4,3]. A new tree fits the residuals exactly. With learning rate 0.25, what are the updated predictions?",
+    "options": ["[4,3]", "[1.5,5.5]", "[0.5,−0.5]", "[2.5,4.5]"],
+    "answer": 3,
+    "explanation": "Residuals are [2,−2]. Add one quarter of them to the current predictions: [2,5]+[0.5,−0.5].",
+    "rationales": [
+      "This omits shrinkage and applies the entire correction.",
+      "This subtracts the correction rather than adding the negative-gradient fit.",
+      "These are just the increments, not the new predictions.",
+      "Correct: boosting adds a scaled correction to the existing function."
+    ]
+  },
+  {
+    "id": "q17",
+    "lesson": "svm",
+    "topic": "Soft margins",
+    "difficulty": "Advanced",
+    "question": "A positive-class example has linear SVM score 0.4. Using zero as the classification boundary and hinge loss max(0,1−yscore), which statement is correct?",
+    "options": [
+      "It is misclassified with loss 0.6.",
+      "It is correctly classified with loss 0.6.",
+      "It is correctly classified with zero loss.",
+      "It is misclassified with loss 1.4."
+    ],
+    "answer": 1,
+    "explanation": "The score is positive, so the label is correct. But signed score 0.4 is inside the unit margin, giving loss 1−0.4=0.6.",
+    "rationales": [
+      "A positive score is on the correct side for y=+1.",
+      "Correct: correct classification and zero margin loss are distinct.",
+      "Zero hinge loss requires signed score at least one.",
+      "Loss 1.4 would apply to a positive example with score −0.4."
+    ]
+  },
+  {
+    "id": "q18",
+    "lesson": "pca",
+    "topic": "Compression",
+    "difficulty": "Advanced",
+    "question": "PCA eigenvalues are [6,3,1]. You retain the first two components. Which conclusion is justified without using target labels?",
+    "options": [
+      "The resulting classifier will be 90% accurate.",
+      "Exactly 10% of observations are discarded.",
+      "The retained subspace accounts for 90% of feature variance under the fitted preprocessing.",
+      "All information relevant to any future target is preserved."
+    ],
+    "answer": 2,
+    "explanation": "The retained variance fraction is (6+3)/(6+3+1)=0.9. PCA does not optimize a supervised target.",
+    "rationales": [
+      "Explained variance is not prediction accuracy.",
+      "PCA reduces coordinates, not the number of observations.",
+      "Correct: the statement is about represented feature variation.",
+      "A low-variance direction can contain critical target information."
+    ]
+  },
+  {
+    "id": "q19",
+    "lesson": "k-means",
+    "topic": "Clustering objectives",
+    "difficulty": "Intermediate",
+    "question": "K-means inertia is lower for k=10 than k=3. What follows?",
+    "options": [
+      "The fitted ten-center model has lower within-cluster squared error; semantic superiority is not established.",
+      "The population contains exactly ten natural categories.",
+      "Every ten-center solution is more stable across seeds.",
+      "A lower inertia proves better prediction of a separate target."
+    ],
+    "answer": 0,
+    "explanation": "More centers increase flexibility. Inertia is an objective under the chosen geometry, not evidence of natural categories or supervised quality.",
+    "rationales": [
+      "Correct: inspect stability and task usefulness in addition to the objective.",
+      "The number of natural categories is not identified by a lower training objective.",
+      "Local solutions and initialization can still vary.",
+      "K-means does not directly optimize a separate prediction target."
+    ]
+  },
+  {
+    "id": "q20",
+    "lesson": "density-clustering",
+    "topic": "Density connectivity",
+    "difficulty": "Advanced",
+    "question": "DBSCAN uses epsilon=0.15 and min_samples=3, counting each point itself. For points [0,0.1,0.2,2] on a line, which description is correct?",
+    "options": [
+      "All four points are noise.",
+      "All three near-zero points are core.",
+      "Point 2 is a border point because it is the nearest remaining point.",
+      "0.1 is core; 0 and 0.2 are border; 2 is noise."
+    ],
+    "answer": 3,
+    "explanation": "The middle point has three neighbors including itself. Each endpoint has two but is adjacent to the core point; the isolated point has no core neighbor.",
+    "rationales": [
+      "The middle point meets the minimum count and creates a cluster.",
+      "Each endpoint sees only itself and the middle point within radius.",
+      "Being nearest among distant points does not satisfy the radius requirement.",
+      "Correct: the roles follow the explicitly stated neighborhood convention."
+    ]
+  },
+  {
+    "id": "q21",
+    "lesson": "anomaly-detection",
+    "topic": "Anomaly interpretation",
+    "difficulty": "Intermediate",
+    "question": "An anomaly detector is configured to flag the highest-scoring 1% of records. What does this establish about true harmful-event prevalence?",
+    "options": [
+      "Exactly 1% of the population is harmful.",
+      "Nothing by itself; 1% is an imposed selection rate that requires external validation.",
+      "The detector has 99% specificity and 100% recall.",
+      "All unflagged records are normal."
+    ],
+    "answer": 1,
+    "explanation": "A score threshold or contamination setting determines a queue, not verified event labels or detection rates.",
+    "rationales": [
+      "The configured fraction is not an estimate supported by independent labels.",
+      "Correct: assess the selected queue and missed events using appropriate evidence.",
+      "Specificity and recall require true labels, not only a ranking.",
+      "Unflagged records may include missed events."
+    ]
+  },
+  {
+    "id": "q22",
+    "lesson": "probability",
+    "topic": "Base rates",
+    "difficulty": "Advanced",
+    "question": "An event prevalence is 1%. A detector has sensitivity 90% and false-positive rate 5%. Approximately what fraction of its alerts are true events?",
+    "options": ["90%", "95%", "15.4%", "1%"],
+    "answer": 2,
+    "explanation": "True-alert probability is 0.9×0.01=0.009. All-alert probability is 0.009+0.05×0.99=0.0585. Their ratio is about 0.154.",
+    "rationales": [
+      "Sensitivity conditions on actual events, not on alerts.",
+      "This is specificity, a different conditional probability.",
+      "Correct: base rates must be included when reversing the conditioning.",
+      "This is the unconditional prevalence, before observing an alert."
+    ]
+  },
+  {
+    "id": "q23",
+    "lesson": "statistics",
+    "topic": "Sampling uncertainty",
+    "difficulty": "Intermediate",
+    "question": "Under independent sampling with unchanged variance, a mean's standard error is four at n=100. Approximately what is it at n=400?",
+    "options": ["2", "1", "4", "8"],
+    "answer": 0,
+    "explanation": "Standard error scales as 1/sqrt(n), so quadrupling n halves it.",
+    "rationales": [
+      "Correct: 4×sqrt(100/400)=2.",
+      "This incorrectly assumes a 1/n rate.",
+      "The estimator becomes more precise under the stated assumptions.",
+      "More independent observations do not increase this standard error under unchanged variance."
+    ]
+  },
+  {
+    "id": "q24",
+    "lesson": "dataframes",
+    "topic": "Join cardinality",
+    "difficulty": "Intermediate",
+    "question": "For one customer, a table has three transactions and another has two contact records. An inner join on customer ID produces how many rows for that customer?",
+    "options": ["2", "3", "5", "6"],
+    "answer": 3,
+    "explanation": "Each of three left rows matches both right rows, producing 3×2=6 combinations.",
+    "rationales": [
+      "The join does not automatically aggregate transactions to contact count.",
+      "Three would require one matching right record per transaction.",
+      "Joining is not concatenation of row counts.",
+      "Correct: validate many-to-many cardinality against the intended table grain."
+    ]
+  },
+  {
+    "id": "q25",
+    "lesson": "information-theory",
+    "topic": "Probability losses",
+    "difficulty": "Intermediate",
+    "question": "An observed label is positive. Model A assigns probability 0.9 and B assigns 0.01. Using natural-log cross-entropy, which statement is correct?",
+    "options": [
+      "B has lower loss because its probability is numerically smaller.",
+      "A has loss about 0.105 and B about 4.605.",
+      "Both have identical loss if the threshold is 0.5.",
+      "A has loss 0.9 and B has loss 0.01."
+    ],
+    "answer": 1,
+    "explanation": "For an observed positive label, loss is −ln(p). Confidently assigning tiny probability to the observed event incurs a large penalty.",
+    "rationales": [
+      "The negative logarithm reverses that intuition for probabilities below one.",
+      "Correct: probability quality is assessed beyond a binary threshold decision.",
+      "Thresholds do not define cross-entropy loss.",
+      "The loss is a negative logarithm, not the raw probability."
+    ]
+  },
+  {
+    "id": "q26",
+    "lesson": "model-selection",
+    "topic": "Nested validation",
+    "difficulty": "Advanced",
+    "question": "In nested cross-validation, which data may select hyperparameters for the model scored on a particular outer validation fold?",
+    "options": [
+      "All labels, as long as outer predictions are generated afterward.",
+      "Only the outer validation labels.",
+      "Only data in that outer fold's training partition, using an inner selection process.",
+      "Any fold that gives the best final score."
+    ],
+    "answer": 2,
+    "explanation": "The outer validation partition assesses the whole selection procedure. Its outcomes must not guide the choice being evaluated.",
+    "rationales": [
+      "This leaks the outer assessment labels into selection.",
+      "This turns the outer assessment directly into tuning data.",
+      "Correct: inner tuning is confined to the outer training data.",
+      "Selecting a favorable fold is another form of outcome-driven selection."
+    ]
+  },
+  {
+    "id": "q27",
+    "lesson": "reproducibility",
+    "topic": "Reproducible experiments",
+    "difficulty": "Intermediate",
+    "question": "Two runs use the same random seed but different library versions and feature-generation code. What can the seed guarantee?",
+    "options": [
+      "Only control of the seeded random choices within their implementations; it does not establish equivalent experiments.",
+      "Identical coefficients on every device.",
+      "Identical future generalization error.",
+      "That any score difference must be due to sampling noise."
+    ],
+    "answer": 0,
+    "explanation": "A seed is one element of reproducibility. Data, code, dependencies, splits, settings and numerical environment also matter.",
+    "rationales": [
+      "Correct: preserve the complete experimental inputs and environment.",
+      "Algorithm and numerical changes can alter results despite the seed.",
+      "A seed does not determine the unknown future distribution.",
+      "The changed code or dependencies can cause systematic differences."
+    ]
+  },
+  {
+    "id": "q28",
+    "lesson": "deployment",
+    "topic": "Inference contracts",
+    "difficulty": "Advanced",
+    "question": "A regression API receives the expected five numbers but in a different feature order from training. What is the strongest safeguard?",
+    "options": [
+      "Trust the caller because the vector length matches.",
+      "Sort the numbers by magnitude before prediction.",
+      "Refit coefficients on every request.",
+      "Validate named fields, units and schema, then apply the stored preprocessing pipeline in its declared order."
+    ],
+    "answer": 3,
+    "explanation": "Matching length does not preserve feature meaning. A validated input contract and versioned pipeline prevent silent coordinate changes.",
+    "rationales": [
+      "The same dimensionality can contain entirely different feature semantics.",
+      "Sorting destroys the identity of the measured features.",
+      "Refitting per request is neither a valid repair nor the declared trained model.",
+      "Correct: schema and preprocessing must match the training representation."
+    ]
+  },
+  {
+    "id": "q29",
+    "lesson": "monitoring",
+    "topic": "Distribution shift",
+    "difficulty": "Advanced",
+    "question": "A deployed model's input distribution changes noticeably, but reliable outcome labels arrive one month later. What is justified now?",
+    "options": [
+      "Declare that predictive accuracy has definitely fallen.",
+      "Investigate the shift and operational impact; predictive degradation needs outcome evidence or clearly stated proxy limits.",
+      "Ignore the shift because no labels exist yet.",
+      "Retrain immediately on the unlabeled inputs as if they had known targets."
+    ],
+    "answer": 1,
+    "explanation": "Input drift is evidence of changed inputs, not conclusive evidence of changed conditional prediction quality. It should trigger investigation and delayed-label evaluation.",
+    "rationales": [
+      "Drift and accuracy degradation are related possibilities, not logically equivalent facts.",
+      "Correct: respond to the signal while distinguishing measured facts from unresolved outcomes.",
+      "Operational failures or coverage changes can matter before labels mature.",
+      "Unlabeled inputs do not supply supervised targets for ordinary retraining."
+    ]
+  },
+  {
+    "id": "q30",
+    "lesson": "responsible-ml",
+    "topic": "Model interpretation",
+    "difficulty": "Advanced",
+    "question": "A feature has high held-out permutation importance in a predictive model. Which claim is best supported?",
+    "options": [
+      "Intervening on the feature will change the outcome by a known amount.",
+      "The feature is the unique cause of the outcome.",
+      "Under the evaluation and permutation procedure, disrupting that feature worsened the fitted model's score; causal effects are not established.",
+      "Every other correlated feature is irrelevant."
+    ],
+    "answer": 2,
+    "explanation": "Permutation importance measures a fitted model's predictive reliance under a specific perturbation. Correlation and unrealistic perturbations complicate interpretation.",
+    "rationales": [
+      "An intervention effect requires a causal study and assumptions beyond predictive importance.",
+      "Importance does not identify unique causes.",
+      "Correct: state the model, data and perturbation under which the score changed.",
+      "Correlated alternatives can substitute for one another, masking or redistributing apparent importance."
+    ]
+  }
+]

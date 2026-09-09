@@ -14,7 +14,7 @@ export default async function LabsPage({
         <h1>The moment it clicks.</h1>
         <p>
           Change a parameter. Follow a calculation. Watch an idea become
-          something you can see. Nine experiments, with real math under every
+          something you can see. Seven experiments, with real math under every
           control.
         </p>
       </div>

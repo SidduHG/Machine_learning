@@ -1,17 +1,107 @@
 import Link from 'next/link';
-import { ArrowRight, ArrowUpRight, BookOpen, Braces, Cuboid, FlaskConical, GraduationCap, Infinity as InfinityIcon, MoveUpRight } from 'lucide-react';
+import { lessons, modules } from '@/lib/curriculum';
 import { SurfacePreview } from '@/components/surface-preview';
-const tracks = [
-  { number: '01', title: 'Build your foundations', text: 'Python, data, and the mathematics that make machine learning click.', tags: ['Python', 'Linear algebra', 'Probability'], icon: BookOpen },
-  { number: '02', title: 'Think in algorithms', text: 'From your first regression line to ensembles. Understand every decision.', tags: ['Supervised', 'Unsupervised', 'Evaluation'], icon: Cuboid },
-  { number: '03', title: 'Go deeper', text: 'Build intuition for neural networks, attention, and modern language models.', tags: ['Neural networks', 'Transformers', 'RAG'], icon: Braces },
-  { number: '04', title: 'Become a builder', text: 'Turn notebooks into reliable systems. Put your understanding to work.', tags: ['Projects', 'Deployment', 'Responsible AI'], icon: GraduationCap },
-];
-export default function Home() {return <main id="main">
-  <section className="hero wrap"><div className="hero-copy"><div className="eyebrow"><span className="live-dot" /> AN OPEN SCHOOL FOR CURIOUS MINDS</div><h1>Machine learning.<br />Less mystery.<br /><span>More discovery.</span></h1><p className="hero-description">Don’t just learn what an algorithm does.<br className="desktop-break" /> See it, change it, and understand why it works.</p><div className="actions"><Link className="button primary" href="/learn">Start your journey <ArrowRight size={18}/></Link><Link className="button secondary" href="/labs">Explore the labs <FlaskConical size={18}/></Link></div><div className="hero-foot"><span>✓ Free & open</span><span>✓ No account needed</span><span>✓ Learn by doing</span></div></div>
-  <div className="hero-visual"><div className="visual-toolbar"><span><span className="live-dot"/> THE ALGORITHM, UNBOXED</span><span className="mono">EXPERIMENT 001</span></div><SurfacePreview/><div className="visual-caption"><div><span className="mono mini">THE SHAPE OF LEARNING</span><h3>Every step gets a little closer.</h3><p>Follow gradient descent toward a lower loss.</p></div><Link aria-label="Explore gradient descent" href="/labs?lab=gradient-descent" className="round-button"><MoveUpRight size={22}/></Link></div></div></section>
-  <section className="manifesto"><div className="wrap manifesto-inner"><p>A complete path.<br/><strong>A different way to learn.</strong></p><div><BookOpen/><span>Understand the theory</span></div><div><Cuboid/><span>See the math in motion</span></div><div><Braces/><span>Build something real</span></div></div></section>
-  <section className="wrap section" id="curriculum"><div className="section-top"><div><div className="eyebrow">YOUR PATH, FROM ZERO TO BUILDING</div><h2>Big ideas. Small, clear steps.</h2></div><Link className="text-link" href="/learn">View the curriculum <ArrowUpRight size={18}/></Link></div><div className="track-grid">{tracks.map(t=><Link href="/learn" className="track-card" key={t.number}><div className="track-top"><t.icon size={24}/><span className="mono">{t.number}</span></div><h3>{t.title}</h3><p>{t.text}</p><div className="tags">{t.tags.map(s=><span key={s}>{s}</span>)}</div><span className="card-arrow"><ArrowRight size={19}/></span></Link>)}</div></section>
-  <section className="wrap section lab-teaser"><div><div className="eyebrow">LESS SCROLLING. MORE “OH, I GET IT.”</div><h2>Your browser is<br/>a machine learning lab.</h2><p>Move a decision boundary. Watch clusters find their centers. Step through an optimizer. The best way to understand is to experiment.</p><Link className="button primary" href="/labs">Open the playground <ArrowUpRight size={18}/></Link></div><div className="experiment-list">{[['01','Fit a line. Find the pattern.','Linear regression'],['02','Make sense of the scatter.','K-means clustering'],['03','Watch a network think.','Neural networks']].map(([n,t,s])=><Link href="/labs" key={n}><span className="mono">{n}</span><div><h3>{t}</h3><p>{s}</p></div><ArrowUpRight/></Link>)}</div></section>
-  <section className="wrap closing"><InfinityIcon size={36}/><h2>Curiosity is the only prerequisite.</h2><p>Bring your questions. We’ll bring the explanations, examples, and experiments.</p><Link className="button primary" href="/learn">Let’s learn something <ArrowRight size={18}/></Link></section>
-  </main>}
+export default function Home() {
+  return (
+    <main id="main">
+      <section className="course-home wrap">
+        <div className="course-home-copy">
+          <div className="eyebrow">AN OPEN COURSE IN CLASSICAL ML</div>
+          <h1>Learn machine learning.</h1>
+          <p>
+            A structured course from Python and mathematics to reliable
+            predictive models. Study the theory, work through the calculations,
+            run the code and test your understanding.
+          </p>
+          <div className="hero-actions">
+            <Link className="button primary" href="/learn/what-is-ml">
+              Start the first chapter →
+            </Link>
+            <Link className="button secondary" href="/learn">
+              Browse the curriculum
+            </Link>
+          </div>
+          <div className="course-home-facts">
+            <span>30 detailed chapters</span>
+            <span>7 visual labs</span>
+            <span>No sign-in required</span>
+          </div>
+        </div>
+        <div className="course-home-visual">
+          <div className="course-home-visual-label">
+            <span>INTERACTIVE LEARNING</span>
+            <strong>Gradient descent</strong>
+          </div>
+          <SurfacePreview />
+          <p>
+            A model’s parameters move across its loss surface as the error
+            changes.
+          </p>
+          <Link href="/labs?lab=gradient-descent">
+            Explore the interactive lab →
+          </Link>
+        </div>
+      </section>
+      <section className="wrap course-home-section">
+        <div className="course-home-section-head">
+          <div>
+            <div className="eyebrow">COURSE CONTENTS</div>
+            <h2>Follow a clear learning sequence</h2>
+          </div>
+          <Link href="/learn">View all chapters →</Link>
+        </div>
+        <div className="home-module-grid">
+          {modules.map((m, i) => (
+            <article key={m.id}>
+              <span className="home-module-number">
+                MODULE {String(i + 1).padStart(2, '0')}
+              </span>
+              <h3>{m.title}</h3>
+              <p>{m.description}</p>
+              <ul>
+                {lessons
+                  .filter((l) => l.module === m.id)
+                  .map((l) => (
+                    <li key={l.id}>
+                      <Link href={'/learn/' + l.id}>{l.title} →</Link>
+                    </li>
+                  ))}
+              </ul>
+            </article>
+          ))}
+        </div>
+      </section>
+      <section className="wrap course-home-section">
+        <div className="home-study-tools">
+          <article>
+            <span>01</span>
+            <h2>Run practical experiments</h2>
+            <p>
+              Edit Python examples and use four project notebooks to compare
+              baselines, validate models and investigate errors.
+            </p>
+            <Link href="/practice">Open practice →</Link>
+          </article>
+          <article>
+            <span>02</span>
+            <h2>Test your understanding</h2>
+            <p>
+              Work through 30 intermediate and advanced questions. Review the
+              reasoning behind every answer and return to the relevant chapter.
+            </p>
+            <Link href="/assessment">Take the assessment →</Link>
+          </article>
+          <article>
+            <span>03</span>
+            <h2>Study the primary references</h2>
+            <p>
+              Follow a curated guide to ISLP, Inria, Stanford CS229, StatQuest,
+              official documentation and original algorithm papers.
+            </p>
+            <Link href="/resources">Browse the resource guide →</Link>
+          </article>
+        </div>
+      </section>
+    </main>
+  );
+}

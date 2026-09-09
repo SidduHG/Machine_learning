@@ -30,13 +30,22 @@ export function LessonTools({ notes, id }: { notes: string; id: string }) {
     </div>
   );
 }
-export function CodeBlock({ code }: { code: string }) {
+export function CodeBlock({
+  code,
+  label = 'Python · standard library',
+}: {
+  code: string;
+  label?: string;
+}) {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState(false);
   return (
     <div className="code-block">
       <div className="code-toolbar">
-        <span>PYTHON · STANDARD LIBRARY</span>
+        <span>
+          <i className="code-language-dot" />
+          {label}
+        </span>
         <button
           aria-label="Copy Python example"
           onClick={async () => {
@@ -55,13 +64,51 @@ export function CodeBlock({ code }: { code: string }) {
         </button>
       </div>
       <pre>
-        <code>{code}</code>
+        <code>
+          {code
+            .trimEnd()
+            .split('\n')
+            .map((line, index) => (
+              <span className="code-line" key={index}>
+                <span className="code-line-number" aria-hidden="true">
+                  {index + 1}
+                </span>
+                <span>{highlightPython(line)}</span>
+              </span>
+            ))}
+        </code>
       </pre>
       {error && (
         <output>Copy unavailable. Select the code to copy it manually.</output>
       )}
     </div>
   );
+}
+function highlightPython(line: string) {
+  const pattern =
+    /(#[^\n]*|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\b(?:from|import|as|def|return|for|in|if|else|elif|while|try|except|with|True|False|None|and|or|not|assert|raise|class|lambda)\b|\b\d+(?:\.\d+)?\b)/g;
+  const nodes: React.ReactNode[] = [];
+  let last = 0;
+  for (const match of line.matchAll(pattern)) {
+    const index = match.index;
+    nodes.push(line.slice(last, index));
+    const token = match[0];
+    const kind = token.startsWith('#')
+      ? 'comment'
+      : /^['"]/.test(token)
+        ? 'string'
+        : /^\d/.test(token)
+          ? 'number'
+          : 'keyword';
+    nodes.push(
+      <span className={'syntax-' + kind} key={index}>
+        {token}
+      </span>,
+    );
+    last = index + token.length;
+  }
+  nodes.push(line.slice(last));
+  return nodes;
 }
 export function RevealAnswer({ answer }: { answer: string }) {
   const [open, setOpen] = useState(false);

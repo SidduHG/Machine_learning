@@ -34,11 +34,7 @@
     "solution": "The scalar is 3×0.6 + 4×0.8 = 5. Multiplying by the unit direction returns [3,4], because x already lies on that direction.",
     "quiz": {
       "question": "The dot product of two nonzero perpendicular vectors is…",
-      "options": [
-        "1",
-        "Their lengths added",
-        "0"
-      ],
+      "options": ["1", "Their lengths added", "0"],
       "answer": 2,
       "explanation": "cos(90°)=0, so the dot product vanishes."
     },

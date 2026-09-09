@@ -37,6 +37,9 @@ function subscribe(callback: () => void) {
     window.removeEventListener('ml-atlas-progress', callback);
   };
 }
+export function readProgress() {
+  return getSnapshot().data;
+}
 export function useProgress() {
   const current = useSyncExternalStore(subscribe, getSnapshot, () => empty);
   const [error, setError] = useState('');

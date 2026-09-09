@@ -1,0 +1,12 @@
+[
+{"lesson":"linear-regression","title":"Linear Regression, Clearly Explained","url":"https://www.youtube.com/watch?v=7ArmBVF2dCs","task":"Explain what is minimized and why a residual's sign differs from its squared contribution."},
+{"lesson":"gradient-descent","title":"Gradient Descent, Step-by-Step","url":"https://www.youtube.com/watch?v=sDv4f4s2SB8","task":"Pause before an update. Calculate its sign and predict whether a larger step could overshoot."},
+{"lesson":"regularization","title":"Regularization Part 1: Ridge (L2) Regression","url":"https://www.youtube.com/watch?v=Q81RR3yKn30","task":"Write the fitting term and penalty separately, then explain why their optimum can increase training error."},
+{"lesson":"knn","title":"K-nearest neighbors, Clearly Explained","url":"https://www.youtube.com/watch?v=HVXime0nQeI","task":"Compare a query's result under a small and large neighborhood and identify the role of feature scaling."},
+{"lesson":"naive-bayes","title":"Naive Bayes, Clearly Explained","url":"https://www.youtube.com/watch?v=O2L2Uv9pdDA","task":"Label the prior, likelihood and posterior in your own worked example."},
+{"lesson":"decision-trees","title":"Decision and Classification Trees, Clearly Explained","url":"https://www.youtube.com/watch?v=_L39rN6gz7Y","task":"Compute weighted child impurity for one split and compare it with an unweighted average."},
+{"lesson":"ensembles","title":"Random Forests Part 1: Building, Using and Evaluating","url":"https://www.youtube.com/watch?v=J4Wdy0Wc_xQ","task":"Separate the roles of bootstrap sampling and random feature selection."},
+{"lesson":"k-means","title":"K-means clustering","url":"https://www.youtube.com/watch?v=4b5d3muPQmA","task":"Trace one assignment and one center update, then explain why another initialization may differ."},
+{"lesson":"pca","title":"Principal Component Analysis: Step-by-Step","url":"https://www.youtube.com/watch?v=FgakZw6K1QQ","task":"Distinguish a component direction, an observation's score and reconstructed coordinates."},
+{"lesson":"model-selection","title":"Machine Learning Fundamentals: Cross Validation","url":"https://www.youtube.com/watch?v=fSytzGwwBVw","task":"Draw the training and validation membership of four folds. Note the creator's correction at 4:16: the displayed KNN example should have 10 correct and 14 incorrect."}
+]

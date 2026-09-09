@@ -134,11 +134,7 @@
     "solution": "1 × 4 + 4 × 5 + 1 = 25. The output contains three values; its shape would be (3,) in NumPy.",
     "quiz": {
       "question": "What shape does (10, 3) @ (3, 2) produce?",
-      "options": [
-        "(10, 2)",
-        "(3, 3)",
-        "(10, 3, 2)"
-      ],
+      "options": ["(10, 2)", "(3, 3)", "(10, 3, 2)"],
       "answer": 0,
       "explanation": "The shared inner dimension 3 is summed over, leaving the outer dimensions 10 and 2."
     },

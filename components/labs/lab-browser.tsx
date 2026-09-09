@@ -9,8 +9,6 @@ import { RegressionLab } from './regression';
 import { ClassificationLab } from './classification';
 import { ClusteringLab } from './clustering';
 import { PCALab } from './pca';
-import { NetworkLab } from './network';
-import { AttentionLab } from './attention';
 export function LabBrowser({ initial }: { initial: string }) {
   const router = useRouter();
   const [id, setId] = useState<LabId>(
@@ -56,12 +54,8 @@ export function LabBrowser({ initial }: { initial: string }) {
             <ClassificationLab mode={id} />
           ) : id === 'k-means' ? (
             <ClusteringLab />
-          ) : id === 'pca' ? (
-            <PCALab />
-          ) : id === 'neural-network' ? (
-            <NetworkLab />
           ) : (
-            <AttentionLab />
+            <PCALab />
           )}
         </div>
         <div className="lab-question">

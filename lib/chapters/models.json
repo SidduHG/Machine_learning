@@ -1,0 +1,492 @@
+[
+  {
+    "id": "knn",
+    "objectives": [
+      "Explain how distance, scaling and neighborhood size define the predictor.",
+      "Connect local averaging to bias, variance and the curse of dimensionality.",
+      "Build a leak-free nearest-neighbor baseline and diagnose unreliable neighborhoods."
+    ],
+    "prerequisites": [
+      "linear-algebra",
+      "evaluation"
+    ],
+    "sections": [
+      {
+        "title": "The representation is most of the model",
+        "paragraphs": [
+          "Nearest neighbors stores training examples and answers a new query by looking for similar records. There may be little visible work in fit(), but the representation and distance define a strong modeling assumption: nearby inputs should have similar targets. If similarity does not correspond to the task, voting among more neighbors cannot repair the problem. A numeric customer identifier is a classic trap: customer 1002 is not necessarily more similar to 1003 than to 8000.",
+          "Euclidean distance combines squared differences across coordinates. A salary difference measured in individual currency units can overwhelm an age difference measured in years. Learn suitable scaling from training data and reuse it for queries. For categorical data, decide what a mismatch should mean; arbitrary integer codes introduce an artificial order. Missing values also need a documented policy. Distance is not a neutral fact about the original records: it is a consequence of how you represent them."
+        ]
+      },
+      {
+        "title": "Small neighborhoods are flexible, large ones are smoother",
+        "paragraphs": [
+          "With k=1, a classifier can reproduce almost every uniquely represented training label, including mistakes. Its boundary can be jagged and sensitive to one unusual point. Increasing k averages over more labels, reducing sensitivity but potentially smoothing away a real small region. In regression, average neighboring targets; in classification, use votes or a declared weighting rule. Tune k using held-out performance, not training accuracy.",
+          "Distance-weighted voting gives closer points more influence. Exact duplicate queries require a deliberate rule to avoid dividing by zero. Ties also need a deterministic convention: an odd k avoids some binary voting ties but not all multiclass or distance ties. A neighborhood vote fraction should not automatically be trusted as a calibrated probability. Sparse regions may have 'nearest' neighbors that are still far away; report distance or coverage information when that matters to the application."
+        ]
+      },
+      {
+        "title": "Why more features can make neighbors less useful",
+        "paragraphs": [
+          "In high dimensions, a small local box occupies very little of the full space. To collect enough examples, the box must become wide along many directions. Irrelevant coordinates can also dilute the signal in informative ones. Feature selection or a learned representation may help, but any label-informed choice belongs inside validation. PCA preserves variation, not necessarily the variation most useful for the target.",
+          "Prediction can require comparing a query against many stored examples. Trees or approximate search can accelerate suitable workloads, but their behavior depends on dimension, data geometry and approximation settings. Evaluate latency as well as accuracy and consider storage costs. A simple linear model can be a stronger baseline when data are high-dimensional and sparse. The right comparison is a full validated procedure, including preprocessing and retrieval behavior."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Compute a neighborhood vote by hand",
+      "steps": [
+        {
+          "explanation": "For a two-feature query q=(0,0), compare three standardized examples: A=(1,0), B=(0,2), C=(2,2).",
+          "formula": "d(A,q)=1,\\quad d(B,q)=2,\\quad d(C,q)=\\sqrt8"
+        },
+        {
+          "explanation": "If labels are A=0, B=1 and C=1, k=1 predicts zero while k=3 predicts one. The result changes because the voting neighborhood changes.",
+          "formula": "\\hat y_{k=1}=0,\\qquad\\hat y_{k=3}=\\operatorname{mode}(0,1,1)=1"
+        },
+        {
+          "explanation": "With inverse-distance weights, class zero gets weight 1, while class one gets 1/2+1/sqrt(8), approximately 0.854. This weighted rule predicts zero even at k=3.",
+          "formula": "V_c(q)=\\sum_{i\\in N_k(q)}\\frac{\\mathbf1[y_i=c]}{d(x_i,q)}"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "Estimate prices from comparable used items",
+      "scenario": "A resale platform predicts prices from age, condition and technical specifications. Some rare products have no close comparable listings.",
+      "decisions": [
+        "Exclude the final sale outcome and post-sale metadata from inputs. Remove duplicate listings across evaluation partitions.",
+        "Define sensible numeric scaling and categorical encoding, then compare several k values on the same folds.",
+        "Inspect neighborhood examples for expensive errors. Check whether distance reflects product comparability or merely unit choices.",
+        "Measure query latency and identify sparse regions where the model should abstain or request human review."
+      ],
+      "success": "Improved held-out price errors over a simple baseline, with examples that justify the similarity assumptions and a policy for poorly covered queries."
+    },
+    "problems": [
+      {
+        "question": "Two standardized neighbors at distances 1 and 3 have targets 10 and 22. Compute uniform and inverse-distance regression predictions.",
+        "hint": "Normalize the weights before combining targets.",
+        "solution": [
+          "Uniform prediction is (10+22)/2=16.",
+          "Inverse-distance prediction is (10+22/3)/(1+1/3)=13.",
+          "The closer observation pulls the weighted result toward 10; the weighting rule is part of the chosen model."
+        ]
+      },
+      {
+        "question": "A k=1 model gets perfect training accuracy but weak validation accuracy. Name two investigations before collecting a larger dataset.",
+        "hint": "Consider the input representation and local sensitivity.",
+        "solution": [
+          "Inspect feature scaling, leakage, identifiers and whether the chosen distance represents useful similarity.",
+          "Validate larger k values and inspect label noise or duplicate records.",
+          "More data can help coverage, but it does not fix a fundamentally misleading distance."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "sklearn",
+        "focus": "Nearest-neighbor classification, regression and algorithms.",
+        "task": "Compare uniform and distance weights with a scaler fitted inside cross-validation."
+      },
+      {
+        "resource": "islp",
+        "focus": "Statistical learning discussion of K-nearest neighbors and the bias-variance tradeoff.",
+        "task": "Sketch how increasing k changes a decision boundary and list one setting where this is harmful."
+      }
+    ]
+  },
+  {
+    "id": "naive-bayes",
+    "objectives": [
+      "Use Bayes' rule to compare class hypotheses.",
+      "Explain conditional independence and smoothing without confusing likelihood with posterior.",
+      "Implement a stable probabilistic baseline for count-like features."
+    ],
+    "prerequisites": [
+      "probability",
+      "information-theory",
+      "evaluation"
+    ],
+    "sections": [
+      {
+        "title": "Ask how plausible the evidence is under each class",
+        "paragraphs": [
+          "A generative classifier models the feature distribution within each class, then uses Bayes' rule to compare class probabilities after observing the features. A spam example asks two questions: how common is spam before reading the message, and how likely are these words in spam compared with ordinary mail? The first is a prior. The second is a likelihood. A word can be common in spam without making every message containing it probably spam; the base rate matters.",
+          "The naive assumption is conditional independence of represented features given the class. It does not assert that all words are independent in the full dataset. In practice, correlated words such as 'credit' and 'card' can lead to repeated counting of similar evidence. The model may still rank or classify usefully, but confidence can become extreme. Treat its probabilities as quantities to evaluate, not guaranteed measures of uncertainty."
+        ]
+      },
+      {
+        "title": "Match the likelihood family to the data",
+        "paragraphs": [
+          "Multinomial naive Bayes is commonly used with nonnegative count-like features. Bernoulli naive Bayes represents presence and absence of binary features. Gaussian naive Bayes models each numeric feature with a class-specific normal distribution. These are different assumptions, not interchangeable settings. Standardizing a count representation into negative values, for example, conflicts with the nonnegative requirement of a multinomial formulation.",
+          "A feature unseen in one class can create an estimated likelihood of zero. Multiplying by that zero discards all other evidence. Additive smoothing reserves some probability for unobserved events by adding a positive pseudo-count to every vocabulary entry. The vocabulary size appears in the denominator; adding only to the observed word's numerator would not preserve normalization. Build vocabulary and feature statistics from training data only."
+        ]
+      },
+      {
+        "title": "Log space makes the calculation usable",
+        "paragraphs": [
+          "Products of many small probabilities can underflow to zero in floating-point arithmetic. Taking logarithms turns the product into a sum and preserves which positive score is larger. For class comparison, terms shared by all classes can be omitted. If normalized posteriors are required, use a stable normalization such as log-sum-exp rather than exponentiating arbitrarily large negative scores without shifting them.",
+          "Text evaluation also needs careful splitting. A random split of near-duplicate messages can measure template memorization instead of performance on genuinely new mail. Consider time, sender groups or duplicate removal according to the actual task. Compare with a linear classifier on the same training-only text representation. Report class-specific errors and the consequences of false positives; blocking legitimate mail may carry a very different cost from leaving spam in an inbox."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Combine a prior and two pieces of evidence",
+      "steps": [
+        {
+          "explanation": "Under conditional independence, posterior class scores are proportional to the prior times feature likelihoods. The denominator is the same for all classes.",
+          "formula": "P(c\\mid x)\\propto P(c)\\prod_jP(x_j\\mid c)"
+        },
+        {
+          "explanation": "Suppose P(spam)=0.2. Two observed features have likelihoods 0.6 and 0.5 in spam, and 0.1 and 0.2 in ordinary mail. Unnormalized scores are 0.06 and 0.016.",
+          "formula": "s_S=0.2(0.6)(0.5)=0.06,\\quad s_H=0.8(0.1)(0.2)=0.016"
+        },
+        {
+          "explanation": "Normalize the two scores. The value depends on the independence assumptions and the stated likelihood estimates; it is not automatically calibrated on future messages.",
+          "formula": "P(S\\mid x)=\\frac{0.06}{0.06+0.016}\\approx0.7895"
+        },
+        {
+          "explanation": "For count features, additive smoothing includes the total vocabulary size V. N_c is the total token count in the class, not the number of documents.",
+          "formula": "P(\\text{word }j\\mid c)=\\frac{N_{jc}+\\alpha}{N_c+\\alpha V}"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "Triage support tickets with limited labels",
+      "scenario": "A small support team wants to route messages into billing and technical queues. It has a modest labeled archive and needs a quick, interpretable baseline.",
+      "decisions": [
+        "Split by time and check for copied message templates that cross the boundary.",
+        "Fit a count vocabulary on training tickets only, then train a smoothed multinomial model.",
+        "Inspect strongly class-associated words and misrouted examples. Remove features that reveal the historical routing decision rather than the user's original text.",
+        "Compare a regularized linear text classifier using the same development protocol, and measure the cost of misrouting each class."
+      ],
+      "success": "A reproducible routing baseline with useful error analysis. Human review remains appropriate when evidence is weak or topics are outside the training taxonomy."
+    },
+    "problems": [
+      {
+        "question": "A class has 20 total tokens and a vocabulary of five words. One word occurs zero times. What is its probability under additive smoothing α=1?",
+        "hint": "Both numerator and denominator change.",
+        "solution": [
+          "The probability is (0+1)/(20+1×5)=1/25=0.04.",
+          "The denominator reserves one pseudo-count for each of the five vocabulary entries.",
+          "Without smoothing, an occurrence of this word would make the entire class likelihood zero."
+        ]
+      },
+      {
+        "question": "Two input features are exact copies. What does a naive Bayes product do with the evidence?",
+        "hint": "Write the product with the repeated likelihood.",
+        "solution": [
+          "It effectively multiplies the same likelihood contribution twice.",
+          "This violates the intended conditional-independence approximation and can make posterior odds too extreme.",
+          "Remove redundant features when appropriate and evaluate calibration and classification separately."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "cs229",
+        "focus": "Generative learning algorithms and naive Bayes handouts.",
+        "task": "Distinguish P(features|class) from P(class|features) in a numerical example."
+      },
+      {
+        "resource": "sklearn",
+        "focus": "Naive Bayes families and their input assumptions.",
+        "task": "Explain why Gaussian, Bernoulli and Multinomial estimators accept different representations."
+      }
+    ]
+  },
+  {
+    "id": "decision-trees",
+    "objectives": [
+      "Calculate weighted impurity reduction for a candidate split.",
+      "Explain greedy recursive partitioning and its failure modes.",
+      "Control tree complexity and interpret paths without making causal claims."
+    ],
+    "prerequisites": [
+      "information-theory",
+      "evaluation"
+    ],
+    "sections": [
+      {
+        "title": "A tree partitions the feature space with questions",
+        "paragraphs": [
+          "A decision tree repeatedly asks a question such as 'is package weight at most 5 kg?' and sends records into different branches. At a classification leaf, the prediction is based on the labels that reached it; at a squared-error regression leaf, it is usually their mean. Following one path is easy to describe, which makes small trees useful for communicating a model's behavior.",
+          "The training procedure searches candidate questions and picks the split with the best immediate improvement according to its criterion. It then repeats within the children. This is greedy: the first chosen question need not lead to the globally best tree. A slightly worse first split might enable better later ones. Ordinary axis-aligned trees also need several steps to approximate a diagonal boundary, even if a linear classifier could express it with one equation."
+        ]
+      },
+      {
+        "title": "Weight the child impurities by their sizes",
+        "paragraphs": [
+          "A split should make the labels within each child more homogeneous. For Gini impurity, a pure binary node has value zero and a 50/50 node has value 0.5. Average the child impurities with weights proportional to the number of records reaching them. An unweighted average can overvalue a tiny pure child while ignoring a large mixed child. Classification entropy provides another criterion with similar intentions but different numerical values.",
+          "For regression, replace class impurity with a target-dispersion measure such as squared error around each child's mean. A tree can model thresholds and interactions without standardizing numeric units: the order of a feature's values drives a threshold split. That does not mean data preparation is irrelevant. Missing-value handling is implementation-specific, categorical encoding affects available questions, and accidental identifiers can encourage memorization."
+        ]
+      },
+      {
+        "title": "Interpretability has to survive complexity and instability",
+        "paragraphs": [
+          "An unrestricted tree can create tiny leaves that memorize noise. Maximum depth, minimum leaf size and cost-complexity pruning restrict that flexibility. Tune these controls on development data, then assess the chosen procedure on held-out examples. A deep tree is not automatically easy to understand merely because every individual split is simple. Communicate the complete decision path and the sample count supporting its leaf.",
+          "Small changes in data can change the chosen root split and therefore much of the later structure. Correlated features may substitute for one another. Built-in impurity importance can favor features with many possible splits and should not be presented as a causal ranking. Held-out permutation importance answers a different question about the fitted model's predictive reliance; correlated features complicate that interpretation too."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Calculate one split rather than trusting the diagram",
+      "steps": [
+        {
+          "explanation": "A node with six positives and four negatives has positive proportion 0.6. Its Gini impurity sums one minus the squared class proportions.",
+          "formula": "G_P=1-(0.6^2+0.4^2)=0.48"
+        },
+        {
+          "explanation": "A split sends four positives and no negatives left, and two positives plus four negatives right. The left is pure; the right has proportions 1/3 and 2/3.",
+          "formula": "G_L=0,\\quad G_R=1-((1/3)^2+(2/3)^2)=4/9"
+        },
+        {
+          "explanation": "Weight by child size: four of ten examples go left, six go right. The gain is the parent impurity minus this weighted result.",
+          "formula": "\\Delta G=0.48-\\left(\\frac4{10}0+\\frac6{10}\\frac49\\right)\\approx0.2133"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "Explain a warranty-risk screening model",
+      "scenario": "A manufacturer wants a small tree that estimates whether a returned item needs specialist inspection. Staff need to understand individual decisions.",
+      "decisions": [
+        "Use measurements available before inspection; exclude the specialist's later diagnosis from inputs.",
+        "Require a reasonable minimum leaf size and compare shallow trees on stratified or grouped folds appropriate to product batches.",
+        "Inspect each leaf's sample count and held-out errors. A pure training leaf containing two examples is weak evidence.",
+        "Document the path as a description of the model, and compare it with a simple baseline before claiming practical improvement."
+      ],
+      "success": "A compact tree with tested error rates, supported leaves and clear limitations. Staff should be able to trace a prediction without mistaking the tree for a physical causal explanation."
+    },
+    "problems": [
+      {
+        "question": "A parent has 50/50 labels. A split creates children of sizes 9 and 1, with Gini impurities 0.49 and 0. Compute the weighted gain and compare it with an unweighted calculation.",
+        "hint": "The tiny pure leaf should contribute only one tenth of the average.",
+        "solution": [
+          "Weighted child impurity is 0.9×0.49+0.1×0=0.441, giving gain 0.5−0.441=0.059.",
+          "An unweighted average gives 0.245 and an inflated gain of 0.255.",
+          "Ignoring child size exaggerates the value of isolating a single example."
+        ]
+      },
+      {
+        "question": "Why might doubling maximum depth improve training accuracy but worsen validation accuracy?",
+        "hint": "Think about the number of examples supporting each leaf.",
+        "solution": [
+          "More splits allow finer partitions, often reducing training mistakes.",
+          "Small leaves can fit label noise or sample-specific accidents and make unstable predictions.",
+          "Select depth with a clean validation protocol and inspect minimum leaf size rather than choosing the best training score."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "islp",
+        "focus": "Chapter 8: tree-based methods and pruning.",
+        "task": "Draw a two-feature tree and the corresponding rectangles in feature space."
+      },
+      {
+        "resource": "sklearn",
+        "focus": "Decision trees, cost-complexity pruning and feature-importance cautions.",
+        "task": "Compare held-out errors for a depth limit and a pruning path on fixed folds."
+      }
+    ]
+  },
+  {
+    "id": "ensembles",
+    "objectives": [
+      "Explain why averaging benefits from diverse errors.",
+      "Distinguish bagging, random forests and gradient boosting.",
+      "Choose a fair validation and interpretation procedure for tree ensembles."
+    ],
+    "prerequisites": [
+      "decision-trees",
+      "gradient-descent",
+      "regularization"
+    ],
+    "sections": [
+      {
+        "title": "Averaging helps when mistakes are not identical",
+        "paragraphs": [
+          "Suppose several noisy measurements estimate the same quantity. Averaging can cancel some random errors, but it cannot remove a mistake shared by every measurement. The same idea motivates bagging: fit models to bootstrap samples of the training data and combine their predictions. Each bootstrap sample draws records with replacement, so some observations repeat and others are absent. Predictions become less sensitive to the particular training sample when the base learner is unstable.",
+          "A random forest adds randomized feature choices during tree construction. This can reduce similarity between trees while keeping individual trees useful. More trees often stabilize the average, but they do not repair leakage, a poor split strategy or weak features. Forest complexity still depends on depth, leaf size and feature sampling. Saying 'forests cannot overfit' is too broad: the number of trees is only one of several controls, and tuning choices can overfit validation data."
+        ]
+      },
+      {
+        "title": "Boosting builds corrections sequentially",
+        "paragraphs": [
+          "Bagging trains diverse models whose predictions are combined. Gradient boosting instead adds a new model to correct the current ensemble according to the chosen loss. For half squared error, the negative gradient is the residual, so a small tree is fitted to the errors of the current predictor. For other losses, the correction target changes; blindly fitting raw residuals is not a universal boosting algorithm.",
+          "The learning rate scales each addition. Smaller steps may require more trees and interact with depth, minimum leaf size and subsampling. Evaluate these controls together with a bounded search. Early stopping uses a validation signal; that validation data must be appropriate for groups or time. Final test performance should be assessed only after the stopping and tuning procedure is fixed. Compare simple baselines because extra sophistication does not guarantee useful improvement."
+        ]
+      },
+      {
+        "title": "An ensemble still needs an honest explanation",
+        "paragraphs": [
+          "Out-of-bag observations are those omitted from a tree's bootstrap sample. They can support a convenient internal estimate for bagging-style models, but they do not automatically respect a deployment's time or group separation. If future records differ systematically, a separate relevant holdout remains essential. Scores also need denominators, uncertainty and an operating metric tied to the task.",
+          "Feature importance is about a fitted model and a representation. Impurity importance, permutation importance and local explanations answer different questions. Correlated predictors can mask one another in a permutation test, while tree impurity measures can favor many-valued features. Neither identifies what would happen if you intervened on a real-world variable. Use explanations alongside error slices, ablation comparisons and domain knowledge, not as substitutes for them."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Why error correlation matters, and how boosting takes a step",
+      "steps": [
+        {
+          "explanation": "Assume M equal-variance estimators with pairwise correlation ρ. Expanding the variance of their average separates shared error from error that averaging can reduce.",
+          "formula": "\\operatorname{Var}(\\bar f)=\\sigma^2\\left(\\rho+\\frac{1-\\rho}{M}\\right)"
+        },
+        {
+          "explanation": "If σ²=4, ρ=0.5 and M=10, the variance is 2.2. Increasing M cannot remove the shared component of 2 under these assumptions.",
+          "formula": "4\\left(0.5+\\frac{0.5}{10}\\right)=2.2"
+        },
+        {
+          "explanation": "For half squared error, the negative derivative with respect to the prediction is the observed residual. A new base model approximates these correction targets.",
+          "formula": "-\\frac{\\partial}{\\partial F_i}\\tfrac12(y_i-F_i)^2=y_i-F_i"
+        },
+        {
+          "explanation": "Add a shrunken correction. If the current prediction is 10, the fitted correction is 3 and η=0.1, the next prediction is 10.3.",
+          "formula": "F_{m+1}(x)=F_m(x)+\\eta h_m(x)"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "Forecast maintenance demand from tabular records",
+      "scenario": "A service organization predicts numeric repair workload from equipment history and operating measurements. Relationships include thresholds and interactions.",
+      "decisions": [
+        "Use a chronological split and group repeated observations when evaluating generalization to new equipment.",
+        "Compare a constant baseline, ridge, a shallow tree, a random forest and a small boosting search on the same folds.",
+        "Keep early-stopping data separate from the final test and record the search budget so the comparison is reproducible.",
+        "Inspect largest errors and permutation importance on held-out data, then test whether apparently important features are available before the prediction time."
+      ],
+      "success": "A model chosen by relevant held-out error and operational constraints, with a reproducible baseline table and honest limitations on explanations."
+    },
+    "problems": [
+      {
+        "question": "Using the variance formula, compare M=20 estimators with σ²=1 at ρ=0 and ρ=1. What does adding more models accomplish in each case?",
+        "hint": "Substitute the extreme correlations.",
+        "solution": [
+          "With independent errors, variance is 1/20=0.05.",
+          "With perfectly correlated errors, variance stays 1.",
+          "Additional identical-error models provide no averaging benefit; diversity matters alongside individual quality."
+        ]
+      },
+      {
+        "question": "A squared-error boosting model predicts [2,5] for targets [4,3]. A new tree fits residuals exactly. What are the next predictions at η=0.25?",
+        "hint": "Compute target minus current prediction.",
+        "solution": [
+          "Residuals are [2,−2].",
+          "The update adds [0.5,−0.5], producing [2.5,4.5].",
+          "The correction is partial because shrinkage scales the fitted residual model."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "forest-paper",
+        "focus": "Randomized tree construction and the discussion of strength and correlation.",
+        "task": "Explain which source of diversity feature subsampling adds beyond bootstrap sampling."
+      },
+      {
+        "resource": "boosting-paper",
+        "focus": "The stagewise least-squares case before the general gradient formulation.",
+        "task": "Connect the paper's functional update to the two-observation residual exercise."
+      }
+    ]
+  },
+  {
+    "id": "svm",
+    "objectives": [
+      "Explain geometric margin, support vectors and slack variables.",
+      "Connect hinge loss and regularization to soft-margin classification.",
+      "Understand kernel similarity and tune C and kernel scale without leakage."
+    ],
+    "prerequisites": [
+      "linear-algebra",
+      "regularization",
+      "evaluation"
+    ],
+    "sections": [
+      {
+        "title": "Choose a separator that leaves room around the boundary",
+        "paragraphs": [
+          "If several lines separate two classes, an SVM prefers a boundary with a large margin under its objective. Margin is measured relative to coefficient norm, not just the raw score. Multiplying both coefficients and intercept by 100 does not move the boundary, so an unnormalized score cannot by itself define geometric distance. The closest or constraint-active observations determine much of the solution and are called support vectors.",
+          "Real data often cannot be perfectly separated. Soft-margin SVMs allow margin violations, balancing a norm penalty against a loss on examples. An observation can be correctly classified yet lie inside the desired margin and still incur hinge loss. This distinction is important: optimization is not merely counting training classification mistakes. A few mislabeled records can otherwise force an extreme boundary in an attempted hard-margin fit."
+        ]
+      },
+      {
+        "title": "C controls a tradeoff under a specific convention",
+        "paragraphs": [
+          "In the usual displayed sum-loss formulation, larger C gives more weight to violations and smaller C gives more relative emphasis to the norm penalty. However, loss averaging and sample counts affect numerical interpretations across implementations. Standardize appropriate features inside the training pipeline because the Euclidean geometry of the margin depends on their units. A huge numeric scale can dominate both linear and distance-based kernel behavior.",
+          "The RBF kernel compares inputs through an exponential of negative squared distance. Its gamma parameter sets how local that similarity becomes: large gamma makes influence highly local, while small gamma creates broader similarity. C and gamma interact, so tune them jointly with a bounded search on fixed folds. A model that draws tiny islands around training observations may be memorizing noise rather than discovering a robust boundary."
+        ]
+      },
+      {
+        "title": "A kernel is an implicit feature comparison, not magic",
+        "paragraphs": [
+          "A valid kernel can compute an inner product in a transformed feature space without explicitly constructing every transformed coordinate. This makes nonlinear boundaries possible while retaining the mathematical structure of the optimization problem. Not every arbitrary similarity function is a valid positive-semidefinite kernel. For the course, use established kernels and inspect their assumptions rather than inventing a similarity rule and assuming the same guarantees apply.",
+          "Kernel methods can become costly as sample count grows. A linear SVM is often an appropriate comparison for large sparse feature matrices such as text. A decision-function score is not automatically a calibrated probability; probability estimation may require a separately fitted calibration procedure. Evaluate the final pipeline with that procedure included and avoid using the final holdout for either hyperparameters or calibration."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Read the soft-margin objective geometrically",
+      "steps": [
+        {
+          "explanation": "Use labels −1 and +1. A canonical separator asks correctly classified points to have signed score at least one. The distance from a point to the boundary divides the absolute score by the coefficient norm.",
+          "formula": "y_i(w^Tx_i+b)\\ge1,\\qquad d(x_i)=\\frac{|w^Tx_i+b|}{\\|w\\|}"
+        },
+        {
+          "explanation": "For the canonical pair of margin hyperplanes, total width is 2/||w||. Minimizing the squared norm therefore favors a wider margin when constraints are satisfied.",
+          "formula": "\\mathrm{margin width}=\\frac2{\\|w\\|}"
+        },
+        {
+          "explanation": "Soft-margin hinge loss is zero at signed score at least one. It is positive inside the margin and grows further for points on the wrong side.",
+          "formula": "\\min_{w,b}\\frac12\\|w\\|^2+C\\sum_i\\max(0,1-y_i(w^Tx_i+b))"
+        },
+        {
+          "explanation": "The RBF kernel's value is one for identical inputs and decreases with squared distance. Gamma must be interpreted after choosing feature scales.",
+          "formula": "K(x,z)=\\exp(-\\gamma\\|x-z\\|^2)"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "Classify product defects from a modest feature table",
+      "scenario": "An inspection system represents each item by a small set of measured shape and texture statistics. The boundary appears nonlinear, but there are only a few thousand labeled items.",
+      "decisions": [
+        "Split by production batch to avoid nearly identical items crossing the evaluation boundary.",
+        "Compare standardized linear SVM, RBF SVM and a tree baseline using the same folds and primary metric.",
+        "Search C and gamma jointly; record training and validation behavior rather than choosing the sharpest-looking boundary.",
+        "If downstream decisions require probabilities, fit and evaluate calibration within the development process and report its limits."
+      ],
+      "success": "A validated classifier with measured latency and documented input scaling. A visually appealing separator is supporting intuition, not the evaluation result."
+    },
+    "problems": [
+      {
+        "question": "A positive example has score 0.4. Is it classified correctly at threshold zero, and what is its hinge loss? Repeat for score −0.4.",
+        "hint": "For a positive example the signed score is the score itself.",
+        "solution": [
+          "At 0.4 it is correctly classified, but hinge loss is 1−0.4=0.6 because it lies inside the margin.",
+          "At −0.4 it is misclassified and hinge loss is 1−(−0.4)=1.4.",
+          "Correct classification and zero training loss are different conditions."
+        ]
+      },
+      {
+        "question": "For two points at squared distance 4, calculate RBF similarity when gamma is 0.25 and 1. What changed?",
+        "hint": "Evaluate exp(−gamma×4).",
+        "solution": [
+          "At 0.25 the value is exp(−1), approximately 0.3679.",
+          "At 1 it is exp(−4), approximately 0.0183.",
+          "Larger gamma makes the same separation appear much less similar and creates a more local notion of influence."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "svm-paper",
+        "focus": "Soft-margin formulation and support vectors.",
+        "task": "Explain a correctly classified margin-violating point using the exercise above."
+      },
+      {
+        "resource": "cs229",
+        "focus": "Support vector machine handouts, after reviewing vector norms and constrained optimization.",
+        "task": "Derive the distance-to-hyperplane expression before reading the dual formulation."
+      }
+    ]
+  }
+]

@@ -5,9 +5,121 @@ import { ArrowRight, BookOpen, Search, Clock, Cuboid } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import type { Module, Lesson } from '@/lib/curriculum/types';
-type Summary=Pick<Lesson,'id'|'title'|'summary'|'module'|'minutes'|'lab'>;
-export function CurriculumBrowser({modules,lessons}:{modules:Module[];lessons:Summary[]}){
-const [query,setQuery]=useState('');const [tab,setTab]=useState('all');
-const visible=lessons.filter(l=>`${l.title} ${l.summary}`.toLowerCase().includes(query.toLowerCase()));
-const groups=modules.filter(m=>tab==='all'||(tab==='foundations'?['foundations','mathematics'].includes(m.id):tab==='core'?['supervised','models','unsupervised'].includes(m.id):['deep-learning','modern-ai','engineering'].includes(m.id)));
-return <><div className="course-search"><Search size={20}/><Input aria-label="Search lessons" placeholder="What do you want to understand?" value={query} onChange={e=>setQuery(e.target.value)}/><span>{visible.length} lessons</span></div><Tabs value={tab} onValueChange={v=>setTab(String(v))}><TabsList className="course-tabs"><TabsTrigger value="all">The complete path</TabsTrigger><TabsTrigger value="foundations">Foundations</TabsTrigger><TabsTrigger value="core">Core ML</TabsTrigger><TabsTrigger value="advanced">Deep learning & AI</TabsTrigger></TabsList><TabsContent value={tab}><div className="module-list">{groups.filter(m=>visible.some(l=>l.module===m.id)).map(m=><section className="module-block" key={m.id} id={m.id}><div className="module-heading"><span className="module-number" style={{color:m.color,background:m.color+'12'}}>{String(modules.indexOf(m)+1).padStart(2,'0')}</span><div><div className="eyebrow">{m.level} · {lessons.filter(l=>l.module===m.id).length} LESSONS</div><h2>{m.title}</h2><p>{m.description}</p></div></div><div className="lesson-list">{visible.filter(l=>l.module===m.id).map(l=><Link href={'/learn/'+l.id} key={l.id} className="lesson-row"><span className="lesson-row-icon"><BookOpen size={19}/></span><div><h3>{l.title}</h3><p>{l.summary}</p></div><span className="lesson-meta">{l.lab&&<Cuboid size={16}/>}<Clock size={14}/>{l.minutes} min</span><ArrowRight size={18}/></Link>)}</div></section>)}</div>{!groups.some(m=>visible.some(l=>l.module===m.id))&&<div className="panel empty-state"><Search/><h2>No lessons match that search</h2><p>Try “regression”, “probability”, or a different learning stage.</p><button className="button secondary" onClick={()=>{setQuery('');setTab('all')}}>Reset search</button></div>}</TabsContent></Tabs></>}
+type Summary = Pick<
+  Lesson,
+  'id' | 'title' | 'summary' | 'module' | 'minutes' | 'lab'
+>;
+export function CurriculumBrowser({
+  modules,
+  lessons,
+}: {
+  modules: Module[];
+  lessons: Summary[];
+}) {
+  const [query, setQuery] = useState('');
+  const [tab, setTab] = useState('all');
+  const visible = lessons.filter((l) =>
+    `${l.title} ${l.summary}`.toLowerCase().includes(query.toLowerCase()),
+  );
+  const groups = modules.filter(
+    (m) =>
+      tab === 'all' ||
+      (tab === 'foundations'
+        ? ['foundations', 'mathematics'].includes(m.id)
+        : tab === 'core'
+          ? ['supervised', 'models', 'unsupervised'].includes(m.id)
+          : m.id === 'engineering'),
+  );
+  return (
+    <>
+      <div className="course-search">
+        <Search size={20} />
+        <Input
+          aria-label="Search lessons"
+          placeholder="What do you want to understand?"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <span>{visible.length} lessons</span>
+      </div>
+      <Tabs value={tab} onValueChange={(v) => setTab(String(v))}>
+        <TabsList className="course-tabs">
+          <TabsTrigger value="all">The complete path</TabsTrigger>
+          <TabsTrigger value="foundations">Foundations</TabsTrigger>
+          <TabsTrigger value="core">Core ML</TabsTrigger>
+          <TabsTrigger value="advanced">ML engineering</TabsTrigger>
+        </TabsList>
+        <TabsContent value={tab}>
+          <div className="module-list">
+            {groups
+              .filter((m) => visible.some((l) => l.module === m.id))
+              .map((m) => (
+                <section className="module-block" key={m.id} id={m.id}>
+                  <div className="module-heading">
+                    <span
+                      className="module-number"
+                      style={{ color: m.color, background: m.color + '12' }}
+                    >
+                      {String(modules.indexOf(m) + 1).padStart(2, '0')}
+                    </span>
+                    <div>
+                      <div className="eyebrow">
+                        {m.level} ·{' '}
+                        {lessons.filter((l) => l.module === m.id).length}{' '}
+                        LESSONS
+                      </div>
+                      <h2>{m.title}</h2>
+                      <p>{m.description}</p>
+                    </div>
+                  </div>
+                  <div className="lesson-list">
+                    {visible
+                      .filter((l) => l.module === m.id)
+                      .map((l) => (
+                        <Link
+                          href={'/learn/' + l.id}
+                          key={l.id}
+                          className="lesson-row"
+                        >
+                          <span className="lesson-row-icon">
+                            <BookOpen size={19} />
+                          </span>
+                          <div>
+                            <h3>{l.title}</h3>
+                            <p>{l.summary}</p>
+                          </div>
+                          <span className="lesson-meta">
+                            {l.lab && <Cuboid size={16} />}
+                            <Clock size={14} />
+                            {l.minutes} min
+                          </span>
+                          <ArrowRight size={18} />
+                        </Link>
+                      ))}
+                  </div>
+                </section>
+              ))}
+          </div>
+          {!groups.some((m) => visible.some((l) => l.module === m.id)) && (
+            <div className="panel empty-state">
+              <Search />
+              <h2>No lessons match that search</h2>
+              <p>
+                Try “regression”, “probability”, or a different learning stage.
+              </p>
+              <button
+                className="button secondary"
+                onClick={() => {
+                  setQuery('');
+                  setTab('all');
+                }}
+              >
+                Reset search
+              </button>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </>
+  );
+}

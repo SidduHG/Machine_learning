@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { SiteHeader } from '@/components/site-header';
 import { SiteFooter } from '@/components/site-footer';
 import { StudyAssistant } from '@/components/study-assistant';
+import { StudyActions } from '@/components/study-actions';
 import './globals.css';
 export const metadata: Metadata = {
   title: {
@@ -9,7 +10,8 @@ export const metadata: Metadata = {
     template: '%s | ML Atlas',
   },
   description:
-    'An open machine learning school. Explore original lessons, worked math, interactive 3D algorithm labs, and practical AI engineering projects.',
+    'A structured classical machine learning course with detailed theory, worked mathematics, Python implementations, interactive algorithm labs and a 30-question assessment.',
+  icons: { icon: '/favicon.svg' },
 };
 export default function RootLayout({
   children,
@@ -23,6 +25,7 @@ export default function RootLayout({
         {children}
         <SiteFooter />
         <StudyAssistant />
+        <StudyActions />
       </body>
     </html>
   );

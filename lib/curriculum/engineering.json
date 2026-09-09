@@ -134,10 +134,7 @@
     "solution": "Investigate the change, verify representative labels and subgroup performance, and monitor. Do not assume retraining is necessary solely from the drift statistic.",
     "quiz": {
       "question": "Does detected input drift always mean degraded accuracy?",
-      "options": [
-        "Yes",
-        "No"
-      ],
+      "options": ["Yes", "No"],
       "answer": 1,
       "explanation": "A model may be robust to the changed mix. Measure outcomes and relevant subgroups."
     },
@@ -183,10 +180,7 @@
     "solution": "What documents and languages are supported? Which errors matter most and to whom? What data, evaluation evidence, human review, and correction paths support the intended use?",
     "quiz": {
       "question": "Removing a protected attribute guarantees a fair model.",
-      "options": [
-        "True",
-        "False"
-      ],
+      "options": ["True", "False"],
       "answer": 1,
       "explanation": "Other inputs may act as proxies, and inequity can enter through labels, sampling, objectives, or deployment decisions."
     },

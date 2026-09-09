@@ -1,0 +1,481 @@
+[
+  {
+    "id": "reproducibility",
+    "objectives": [
+      "Record the data, code, environment and split that define an experiment.",
+      "Distinguish repeatability from statistical stability.",
+      "Build a clean-run project with meaningful regression checks."
+    ],
+    "prerequisites": [
+      "model-selection",
+      "python"
+    ],
+    "sections": [
+      {
+        "title": "A seed does not describe the experiment",
+        "paragraphs": [
+          "A random seed controls specified random choices inside an implementation. It does not preserve a dataset, feature definition, package version or evaluation boundary. If a library changes its solver or defaults, the same seed may produce different coefficients. If a feature query silently includes an extra week of records, the study itself has changed. Save enough information for another person to reconstruct what was actually measured.",
+          "Record the input snapshot or a stable identifier and checksum, code revision, dependency versions, configuration, split membership, primary metric and model artifact. Keep raw data immutable when practical and separate transformations from results. Sensitive data should not be committed merely to make a notebook convenient; describe secure access and provenance without publishing private records."
+        ]
+      },
+      {
+        "title": "Repeat the computation and challenge the conclusion",
+        "paragraphs": [
+          "Repeatability means rerunning the declared procedure and obtaining compatible results under its environment. Stability asks whether the conclusion survives reasonable variations such as different development samples or seeds. A perfectly repeatable experiment can still be overfit to one split. Conversely, a stochastic algorithm can support a stable conclusion even if its last decimal or exact tree structure changes between runs.",
+          "Use a small set of declared seeds or resamples to inspect variability when justified by the task. Keep the final assessment boundary intact. Do not try seeds until a favorable score appears and report that seed alone. Compare models on the same splits and show the distribution of differences rather than using independent random evaluation sets for each candidate."
+        ]
+      },
+      {
+        "title": "Test behavior at the seams that can invalidate results",
+        "paragraphs": [
+          "Useful tests include row-key uniqueness, target availability at prediction time, preprocessing fitted only within the intended boundary, consistent feature order, finite predictions and agreement with a tiny hand-calculated reference. Test the metric independently of the model. A test that merely asserts the current output equals itself cannot detect a conceptual error.",
+          "Make the project runnable from a clean environment with one documented entry point. Restart and run notebooks top to bottom, or move reusable calculations into functions and scripts. Include expected output structure and tolerances where floating-point differences are harmless. Explain known sources of variation instead of claiming bitwise reproducibility across every operating system and numerical backend."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Compare paired model errors",
+      "steps": [
+        {
+          "explanation": "For each shared evaluation example, compute the difference in loss between candidate A and baseline B. Pairing holds observation difficulty constant.",
+          "formula": "d_i=\\ell(y_i,\\hat y_i^A)-\\ell(y_i,\\hat y_i^B)"
+        },
+        {
+          "explanation": "The average difference summarizes the direction and magnitude of improvement. Negative means A has lower average loss under this definition.",
+          "formula": "\\bar d=\\frac1n\\sum_i d_i"
+        },
+        {
+          "explanation": "If per-example differences are [−2,1,−1], the average is −2/3. This tiny illustration is not enough evidence for a stable population advantage.",
+          "formula": "\\bar d=(-2+1-1)/3=-2/3"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "A colleague cannot reproduce a notebook's headline score",
+      "scenario": "The notebook references a changing CSV export and relies on cells executed earlier. Only its winning accuracy is saved.",
+      "decisions": [
+        "Identify the exact data version and restore row-level split membership.",
+        "Create a clean dependency environment and run every cell in order.",
+        "Move hidden configuration into explicit parameters and preserve seeds, metric definitions and preprocessing steps.",
+        "Compare the resulting outputs with documented tolerances and investigate material differences before updating the report."
+      ],
+      "success": "A clean run that reproduces the declared experiment and a separate stability analysis that supports its conclusion."
+    },
+    "problems": [
+      {
+        "question": "Two experiments use the same seed but different feature extraction code. Are they equivalent?",
+        "hint": "Randomness is only one input to a modeling procedure.",
+        "solution": [
+          "No. The representation and possibly the prediction task have changed.",
+          "Record both code revisions and compare the resulting feature tables and split identities.",
+          "Describe the comparison as a changed procedure rather than expecting the seed to force identical results."
+        ]
+      },
+      {
+        "question": "What should a reproducibility report include besides the best score?",
+        "hint": "Think about rebuilding the result from an empty environment.",
+        "solution": [
+          "Data provenance/version, code, dependencies, configuration, split procedure and selected parameters.",
+          "Baseline results, metric definitions, relevant uncertainty and expected output structure.",
+          "Instructions for a clean run and any data-access or platform limitations."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "inria",
+        "focus": "Reproducible predictive pipelines and model-selection notebooks.",
+        "task": "Run a project in a fresh environment and audit every source of hidden state."
+      },
+      {
+        "resource": "sklearn",
+        "focus": "Controlling randomness and common pitfalls.",
+        "task": "Explain what an integer random_state does and what it does not preserve."
+      }
+    ]
+  },
+  {
+    "id": "deployment",
+    "objectives": [
+      "Define an input and output contract for a fitted ML pipeline.",
+      "Prevent training-serving mismatches and unsafe artifact loading.",
+      "Choose batch or online inference and plan a reversible rollout."
+    ],
+    "prerequisites": [
+      "reproducibility",
+      "data-preparation",
+      "evaluation"
+    ],
+    "sections": [
+      {
+        "title": "Deploy the feature meaning as well as the coefficients",
+        "paragraphs": [
+          "A fitted model expects a specific representation. Five numbers in the wrong order are not the same input even if the shape matches. An inference contract should identify fields, types, units, allowed ranges, missing-value rules and the prediction timestamp. Validate these before preprocessing. Store the fitted imputer, encoder, scaler and estimator together so production uses the same transformations as evaluation.",
+          "Unknown categories, reordered columns and unit changes are ordinary deployment cases, not rare implementation details. Decide whether to reject, map or accept each case using documented behavior. Return a model version and an output definition, such as minutes of expected duration or probability of a specified event. A raw numeric score without a meaning can be misused by downstream code."
+        ]
+      },
+      {
+        "title": "Choose the serving pattern from the decision's needs",
+        "paragraphs": [
+          "Batch inference computes predictions for a collection on a schedule. It is often simpler for daily planning when immediate results are unnecessary. Online inference handles individual requests with latency and availability requirements. The model may be identical, while operational constraints differ. Measure end-to-end latency including feature access, validation and serialization, not only the estimator's predict call.",
+          "Keep the inference artifact fixed for a release and avoid fitting a new scaler on request batches. Define timeouts, input limits and fallback behavior appropriate to the application. A simple established baseline may be a safer fallback than returning an unvalidated default. Ensure callers can distinguish a successful prediction from an error or fallback, rather than silently presenting all outputs as equally reliable."
+        ]
+      },
+      {
+        "title": "A release is an experiment with a rollback path",
+        "paragraphs": [
+          "Begin with replay tests on known records and compare offline and serving predictions within justified tolerances. Shadow mode can produce predictions without affecting decisions while you inspect latency and feature behavior. A limited rollout then tests real operational effects under a declared monitoring plan. Keep the previous artifact and configuration available for rollback.",
+          "Model persistence formats have security and compatibility implications. Some Python serialization formats can execute code during loading; do not load untrusted artifacts. Check version compatibility and choose a format whose supported estimators and runtime meet your needs. Preserve evaluation evidence with the artifact. A file that loads successfully is not proof that its feature semantics or operational behavior match training."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Budget end-to-end latency",
+      "steps": [
+        {
+          "explanation": "Total response latency includes more than model computation. A simple budget adds serial components before considering concurrency and tail behavior.",
+          "formula": "T_{\\mathrm{total}}=T_{\\mathrm{features}}+T_{\\mathrm{validation}}+T_{\\mathrm{model}}+T_{\\mathrm{serialization}}"
+        },
+        {
+          "explanation": "If components take 35, 3, 7 and 5 milliseconds, the total is 50 milliseconds. Optimizing the 7-ms estimator alone leaves most of the cost untouched.",
+          "formula": "T_{\\mathrm{total}}=35+3+7+5=50\\,\\mathrm{ms}"
+        },
+        {
+          "explanation": "A mean does not describe tail latency. Report an appropriate percentile or service target measured under realistic load.",
+          "formula": "P(T\\le t_{0.95})\\approx0.95"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "Serve a delivery-time regression model",
+      "scenario": "An application requests predicted duration during checkout. Inputs come from several services, some of which occasionally time out.",
+      "decisions": [
+        "Validate named fields, units and availability timestamps and use the stored fitted pipeline.",
+        "Replay a reference batch through both offline and API paths and compare outputs.",
+        "Measure end-to-end latency and define explicit failure and fallback responses.",
+        "Roll out gradually, monitor feature failures and errors as labels arrive, and preserve the previous model for rollback."
+      ],
+      "success": "A versioned prediction service with a tested schema, reproducible outputs, operational monitoring and a recovery path."
+    },
+    "problems": [
+      {
+        "question": "The API receives all expected numeric fields, but distance is now in meters instead of kilometers. Why can shape validation miss the issue?",
+        "hint": "Types and dimensions do not encode units automatically.",
+        "solution": [
+          "The vector has the same length and numeric types, but its meaning changed by a factor of a thousand.",
+          "Validate or convert units through an explicit schema and test known examples.",
+          "Monitor feature ranges as an additional signal rather than relying only on type checks."
+        ]
+      },
+      {
+        "question": "Why should a serving process avoid fitting StandardScaler on each incoming batch?",
+        "hint": "The model coefficients were learned in one fitted coordinate system.",
+        "solution": [
+          "A new batch scaler changes that coordinate system and makes a prediction depend on other requests in the batch.",
+          "Apply the stored training scaler unchanged.",
+          "If a new representation is needed, retrain and evaluate a new versioned pipeline rather than silently altering inference."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "sklearn",
+        "focus": "Model persistence, prediction latency and pipeline documentation.",
+        "task": "Document artifact trust, compatibility and feature-contract checks for a project."
+      },
+      {
+        "resource": "inria",
+        "focus": "Complete predictive pipeline examples.",
+        "task": "Extract one fitted pipeline into a small inference function and compare it with notebook predictions."
+      }
+    ]
+  },
+  {
+    "id": "monitoring",
+    "objectives": [
+      "Separate data-quality failures, input drift and predictive degradation.",
+      "Design monitoring for delayed labels and operational workloads.",
+      "Define investigation, retraining and rollback criteria."
+    ],
+    "prerequisites": [
+      "deployment",
+      "statistics",
+      "evaluation"
+    ],
+    "sections": [
+      {
+        "title": "Monitor the system at several levels",
+        "paragraphs": [
+          "Operational monitoring checks availability, latency, errors and resource use. Data-quality monitoring checks missing fields, invalid ranges, new categories and freshness. Distribution monitoring compares recent inputs or scores with a relevant reference. Outcome monitoring measures predictive quality after labels arrive. These layers answer different questions and should not be collapsed into one dashboard score.",
+          "A rise in missing values may reveal a broken upstream feed rather than a learning problem. A change in predicted-class rate may reflect seasonality, a changed population or a model defect. Investigate the generating process before retraining. A new model trained on corrupted inputs can make an operational problem harder to diagnose."
+        ]
+      },
+      {
+        "title": "Drift is evidence of change, not a complete diagnosis",
+        "paragraphs": [
+          "Input drift means the distribution of represented inputs changed. Concept drift concerns a change in the relationship between inputs and outcomes. An input distribution can change while predictions remain adequate, or conditional behavior can change without an obvious marginal input shift. Consequently an input-drift alert is a reason to inspect the system, not conclusive proof of accuracy loss.",
+          "Choose reference windows and thresholds that account for expected seasonality and sampling variation. Very large samples can make tiny distribution differences statistically detectable even when operationally unimportant. Track effect sizes, important feature slices and queue volumes. Do not run hundreds of uncalibrated alerts and expect each one to be independently meaningful."
+        ]
+      },
+      {
+        "title": "Delayed and selected labels change what can be measured",
+        "paragraphs": [
+          "Some outcomes mature weeks after prediction. Compare cohorts only when their labels are sufficiently complete, and distinguish event date from label arrival date. Keep prediction versions and input timestamps so outcomes can be joined correctly. If only reviewed alerts receive labels, observed precision reflects a selected population and does not directly reveal missed events among unreviewed records.",
+          "Define a response plan before an alert occurs: who investigates, which evidence triggers rollback, when retraining is permitted and how a candidate must be evaluated. Use a recent representative development set while preserving an assessment boundary. Automatic retraining is not a universal repair for concept drift, label defects or feedback loops created by the model's own decisions."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Compare rates with their denominators",
+      "steps": [
+        {
+          "explanation": "For a time window, compute missing-input rate as the number of affected records divided by the eligible record count.",
+          "formula": "r_{\\mathrm{missing}}=\\frac{n_{\\mathrm{missing}}}{n_{\\mathrm{eligible}}}"
+        },
+        {
+          "explanation": "A reference with 20 missing records in 1,000 has rate 2%. A recent window with 90 in 1,000 has rate 9%, an increase of seven percentage points.",
+          "formula": "\\Delta r=90/1000-20/1000=0.07"
+        },
+        {
+          "explanation": "Relative change is 350%, which sounds very different. State counts and absolute change so the reader understands the operational scale.",
+          "formula": "\\frac{0.09-0.02}{0.02}=3.5"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "A review queue doubles overnight",
+      "scenario": "A classifier's alert count jumps after a source-system update. Confirmed outcome labels will not arrive for two weeks.",
+      "decisions": [
+        "Check schema, category and missing-value changes and compare affected input fields with the reference period.",
+        "Inspect whether traffic volume or population composition changed alongside the alert rate.",
+        "Apply operational safeguards or rollback according to the declared policy while investigating.",
+        "Evaluate predictive errors on matured outcome cohorts later, keeping the immediate drift finding separate from unverified accuracy claims."
+      ],
+      "success": "A timely operational response with a clear distinction between measured changes and unresolved predictive quality."
+    },
+    "problems": [
+      {
+        "question": "A drift detector flags a numeric input distribution. Does this prove model accuracy decreased?",
+        "hint": "Marginal inputs and conditional outcomes are different distributions.",
+        "solution": [
+          "No. It proves a detected change under that test and threshold, not predictive harm.",
+          "Inspect data quality, operating conditions, effect size and outcome evidence when available.",
+          "Keep monitoring because harmful change can also occur without the same marginal drift signal."
+        ]
+      },
+      {
+        "question": "Why compare prediction cohorts only after their labels mature?",
+        "hint": "Recent outcomes may be systematically incomplete.",
+        "solution": [
+          "A recent cohort can appear artificially better or worse because some outcomes have not arrived.",
+          "Use a documented maturation window and track label completeness.",
+          "Preserve prediction timestamps and model versions for reliable joins and comparisons."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "sklearn",
+        "focus": "Model evaluation and metric interpretation.",
+        "task": "Specify which outcomes and denominators a deployment dashboard can actually observe."
+      },
+      {
+        "resource": "inria",
+        "focus": "Generalization and data-distribution material.",
+        "task": "Create a monitoring plan that separates schema failures from outcome degradation."
+      }
+    ]
+  },
+  {
+    "id": "responsible-ml",
+    "objectives": [
+      "Describe intended use, affected people and limitations of an ML system.",
+      "Evaluate important groups and distinguish association from causal claims.",
+      "Document data provenance, privacy choices and human review."
+    ],
+    "prerequisites": [
+      "evaluation",
+      "statistics",
+      "deployment"
+    ],
+    "sections": [
+      {
+        "title": "A model's context determines which errors matter",
+        "paragraphs": [
+          "The same classification error can have very different consequences in a spam filter and an eligibility decision. Begin with intended use, excluded uses and the people affected by the system. Identify who can review or contest an outcome, what information a human receives and what happens when the model lacks relevant evidence. High average accuracy does not replace these design choices.",
+          "Dataset labels can reflect historical practices rather than an objective ideal. A model trained to reproduce past decisions can preserve their biases even if its optimization is technically correct. Inspect how labels were obtained, which populations are missing and whether the target is appropriate for the intended action. Document uncertainties rather than turning historical association into a statement about what people deserve."
+        ]
+      },
+      {
+        "title": "Group metrics and explanations have conditions",
+        "paragraphs": [
+          "Compare relevant error rates across meaningful groups with their sample counts and uncertainty. Different fairness criteria describe different goals and can conflict, especially when outcome prevalence differs. There is no single universally correct fairness score to maximize without understanding the context. Small groups may have unstable rates, so avoid confident comparisons based on a few errors.",
+          "Feature importance explains something about a fitted predictor under a specific procedure. It does not establish what an intervention on the feature would cause. Correlated features can substitute for one another, and a permutation can create combinations that rarely occur naturally. Use explanations alongside validation, error analysis and domain reasoning. A neat explanation of a bad prediction does not make the prediction reliable."
+        ]
+      },
+      {
+        "title": "Document the data and the limits of automation",
+        "paragraphs": [
+          "Collect only information justified by the purpose and control access to sensitive records. Remove credentials and private data from shared notebooks. Public datasets can still carry usage conditions; check their provenance and terms before distributing a commercial course artifact. Synthetic examples should be labeled synthetic so learners do not mistake invented records for real evidence.",
+          "A model card should state the task, training and evaluation populations, feature availability, primary metrics, important slices, limitations and monitoring plan. Human review needs its own workflow: who decides, what evidence they see and whether they can override the model. Review can fail if people treat a confident score as an order, so test the combined process rather than assuming the presence of a person resolves every risk."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Compare error rates without hiding sample size",
+      "steps": [
+        {
+          "explanation": "False-negative rate is missed positives divided by all actual positives within the group being assessed.",
+          "formula": "FNR_g=\\frac{FN_g}{TP_g+FN_g}"
+        },
+        {
+          "explanation": "If group A has 10 misses among 100 positives and B has four among 20, rates are 10% and 20%. The absolute difference is ten percentage points.",
+          "formula": "FNR_A=0.10,\\quad FNR_B=0.20,\\quad\\Delta=0.10"
+        },
+        {
+          "explanation": "The groups have unequal amounts of evidence. Rate differences alone do not establish their uncertainty, cause or an appropriate remedy.",
+          "formula": "n_{A,+}=100,\\qquad n_{B,+}=20"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "Audit a support-priority classifier",
+      "scenario": "A support system routes tickets into priority queues. Certain language groups appear to receive slower responses, and the model learned from historical routing labels.",
+      "decisions": [
+        "Inspect whether historical labels reflect urgency or prior staffing and language limitations.",
+        "Compare false-negative rates and delays by relevant groups, including denominators and uncertainty.",
+        "Review representative mistakes with appropriate domain expertise and assess the target definition.",
+        "Document appeal, override and monitoring processes before expanding automation."
+      ],
+      "success": "A documented system-level review with measured disparities, tested changes and explicit unresolved limitations. One aggregate metric or explanation graphic is insufficient."
+    },
+    "problems": [
+      {
+        "question": "A feature's permutation importance is large. Why is 'changing this feature will improve the real outcome' an unsupported conclusion?",
+        "hint": "Predictive reliance is not an intervention study.",
+        "solution": [
+          "Permutation measures how a fitted model's score responds to a particular disruption in an evaluation dataset.",
+          "Confounding, correlation and unrealistic combinations can affect the result.",
+          "Causal intervention claims require a suitable study design and additional assumptions."
+        ]
+      },
+      {
+        "question": "Two groups have the same observed error rate but one has only five examples. What should a report say?",
+        "hint": "Matching point estimates do not imply equally strong evidence.",
+        "solution": [
+          "Include group counts and appropriate uncertainty or clearly state the evidence limitation.",
+          "Do not claim robust parity from a tiny group.",
+          "Investigate whether additional representative data can be collected and whether the metric reflects the relevant harm."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "islp",
+        "focus": "Model assessment and interpretation cautions in the relevant model chapters.",
+        "task": "Separate prediction, explanation and causal claims in your project report."
+      },
+      {
+        "resource": "sklearn",
+        "focus": "Permutation feature importance and common interpretation pitfalls.",
+        "task": "Explain how correlated features can alter a permutation-importance conclusion."
+      }
+    ]
+  },
+  {
+    "id": "portfolio",
+    "objectives": [
+      "Turn a notebook into a defensible end-to-end ML case study.",
+      "Report baselines, error analysis and limitations rather than a single score.",
+      "Use a rubric to decide whether a project is ready for external review."
+    ],
+    "prerequisites": [
+      "reproducibility",
+      "deployment",
+      "responsible-ml"
+    ],
+    "sections": [
+      {
+        "title": "A strong project demonstrates a sequence of decisions",
+        "paragraphs": [
+          "A portfolio project should make it possible to understand why each modeling choice was made. State the prediction contract, data provenance and constraints before showing an estimator. Describe why the split represents future use, why the metric matters and what a baseline already achieves. The result should be a coherent argument supported by reproducible evidence, not a gallery of unrelated plots.",
+          "Choose a manageable problem with data you are allowed to use. A small well-investigated classical-ML project can demonstrate more judgment than a large copied notebook. Distinguish an educational benchmark from a deployed real-world product. Built-in datasets simplify access, but their historical construction and sampling may limit the claims you can make about future operational performance."
+        ]
+      },
+      {
+        "title": "Make improvements attributable and inspect failures",
+        "paragraphs": [
+          "Build one baseline, then change a justified part of the procedure at a time when feasible: preprocessing, features, model family or tuning. Use the same evaluation design for comparisons and log the search budget. If several changes are combined, acknowledge that their individual contributions are not identified. Do not remove difficult evaluation records merely to improve a result.",
+          "Show representative errors and meaningful slices, not only successful examples. Explain how conclusions change under reasonable alternative splits or settings. Record latency or complexity when they matter to deployment. A final score without uncertainty, denominators or baseline context does not tell a reviewer whether the improvement is substantial or stable."
+        ]
+      },
+      {
+        "title": "Package the work so another person can challenge it",
+        "paragraphs": [
+          "Provide a clear README, dependency file, data instructions, clean-run notebook or script, metric definitions and a compact results table. Keep functions reusable and test the calculations or data boundaries most likely to fail silently. Include a model card and state what is intentionally simplified. Downloadable notebooks in this course provide starting procedures and rubrics; extend them with your own error investigation rather than presenting them unchanged as original research.",
+          "A project is ready for review when another person can reproduce its main result, understand the scope of its claim and identify what evidence would change your conclusion. Future improvements should be concrete experiments, such as a group-aware split or calibration evaluation, rather than 'use a more advanced model.' The purpose is to demonstrate disciplined ML reasoning, not to imply that one course or benchmark guarantees employment."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Report improvement with both absolute and relative context",
+      "steps": [
+        {
+          "explanation": "If baseline MAE is 12 and candidate MAE is 9 on the same held-out records, absolute improvement is three target units.",
+          "formula": "\\Delta_{\\mathrm{absolute}}=12-9=3"
+        },
+        {
+          "explanation": "Relative reduction is 25%. Report both forms, because practical significance depends on the units and application.",
+          "formula": "\\Delta_{\\mathrm{relative}}=\\frac{12-9}{12}=0.25"
+        },
+        {
+          "explanation": "A selected model's score remains an estimate. Pair the reported effect with the declared evaluation design and evidence about variability.",
+          "formula": "\\mathrm{claim}=\\mathrm{effect}+\\mathrm{evaluation context}+\\mathrm{limitations}"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "Present a tabular regression study for review",
+      "scenario": "You have completed the course regression notebook and want to demonstrate independent ML ability rather than simply rerunning provided code.",
+      "decisions": [
+        "Write your own prediction contract and explain the benchmark's limits.",
+        "Add a justified comparison using the same development and final assessment boundaries.",
+        "Investigate large residuals, a meaningful slice and sensitivity to a modeling choice.",
+        "Publish a clean-run report with results, limitations and one specific next experiment."
+      ],
+      "success": "A reproducible, critically explained study whose contribution is clear and whose claims match its evidence."
+    },
+    "problems": [
+      {
+        "question": "A report says 'My model achieved R²=0.9' and provides no baseline, split or target definition. What can a reviewer conclude?",
+        "hint": "A score requires a measurement context.",
+        "solution": [
+          "Very little about real usefulness or generalization.",
+          "Request the target, data provenance, split design, preprocessing, baseline and evaluation population.",
+          "A leaked training score and a clean future holdout score can have the same numeric value but very different meanings."
+        ]
+      },
+      {
+        "question": "What is a better next step than 'try more algorithms' when errors are concentrated in new customers?",
+        "hint": "Connect the next experiment to the observed failure.",
+        "solution": [
+          "Investigate customer overlap, feature availability and the group-generalization question.",
+          "Evaluate a group-aware split and inspect whether the representation relies on familiar-customer history.",
+          "Propose a targeted feature or modeling change only after understanding that failure mode."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "inria",
+        "focus": "End-to-end predictive modeling and evaluation notebooks.",
+        "task": "Turn one experiment into a clean-run report with a baseline and error analysis."
+      },
+      {
+        "resource": "islp-labs",
+        "focus": "A classical-ML lab aligned with your chosen project.",
+        "task": "Add an independent investigation and document how it differs from the provided lab."
+      }
+    ]
+  }
+]

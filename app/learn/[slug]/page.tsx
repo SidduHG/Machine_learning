@@ -2,180 +2,330 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import katex from 'katex';
-import {
-  ArrowLeft,
-  ArrowRight,
-  ArrowUpRight,
-  Clock,
-  Cuboid,
-} from 'lucide-react';
-import {
-  lessons,
-  getLesson,
-  getModuleLessons,
-  modules,
-} from '@/lib/curriculum';
+import { lessons, getLesson, modules } from '@/lib/curriculum';
+import { getChapter } from '@/lib/chapters';
+import library from '@/lib/reading-library.json';
+import videos from '@/lib/chapter-videos.json';
+import practicalExamples from '@/lib/practical-examples.json';
 import { lessonMarkdown } from '@/lib/notes';
 import { LessonShell } from '@/components/lesson-shell';
-import { LessonProgress, LessonQuiz, PersonalNote } from '@/components/lesson-progress';
+import {
+  LessonProgress,
+  LessonQuiz,
+  PersonalNote,
+} from '@/components/lesson-progress';
 import {
   LessonTools,
   CodeBlock,
   RevealAnswer,
 } from '@/components/lesson-tools';
+import { LessonExperiment } from '@/components/lesson-experiment';
 type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const l = getLesson((await params).slug);
   return { title: l?.title ?? 'Lesson not found', description: l?.summary };
 }
+function Equation({ formula }: { formula: string }) {
+  return (
+    <div
+      className="equation"
+      dangerouslySetInnerHTML={{
+        __html: katex.renderToString(formula, {
+          displayMode: true,
+          throwOnError: false,
+          trust: false,
+          output: 'htmlAndMathml',
+        }),
+      }}
+    />
+  );
+}
 export default async function LessonPage({ params }: Props) {
   const l = getLesson((await params).slug);
   if (!l) notFound();
+  const chapter = getChapter(l.id);
+  const video = videos.find((v) => v.lesson === l.id);
+  const practical = practicalExamples.find((example) => example.id === l.id);
   const mod = modules.find((m) => m.id === l.module)!;
   const index = lessons.indexOf(l);
   const previous = lessons[index - 1],
     next = lessons[index + 1];
   return (
     <main id="main">
-      <LessonShell
-        title={mod.title}
-        current={l.id}
-        items={getModuleLessons(mod.id).map(({ id, title }) => ({ id, title }))}
-      >
-        <header className="lesson-head">
-          <div className="eyebrow">
-            {mod.title} <span> / </span> LESSON{' '}
-            {String(index + 1).padStart(2, '0')}
+      <LessonShell current={l.id}>
+        <header className="textbook-head">
+          <div className="textbook-breadcrumb">
+            <Link href="/learn">Machine learning</Link>
+            <span>/</span>
+            <span>{mod.title}</span>
           </div>
           <h1>{l.title}</h1>
           <p>{l.summary}</p>
-          <div className="lesson-head-meta">
-            <span>
-              <Clock size={15} />
-              {l.minutes} min guided study
-            </span>
-            <span>Original notes · Updated Sep 2026</span>
+          <div className="textbook-meta">
+            Chapter {index + 1} of {lessons.length} · Original course notes ·
+            Classical ML
+          </div>
+          <div className="textbook-page-buttons">
+            {previous ? (
+              <Link className="button secondary" href={'/learn/' + previous.id}>
+                ← Previous
+              </Link>
+            ) : (
+              <Link className="button secondary" href="/learn">
+                ← Contents
+              </Link>
+            )}
+            {next && (
+              <Link className="button primary" href={'/learn/' + next.id}>
+                Next chapter →
+              </Link>
+            )}
           </div>
           <LessonTools id={l.id} notes={lessonMarkdown(l)} />
         </header>
-        <section className="lesson-section" id="intuition">
-          <span className="section-index">01 / THE INTUITION</span>
-          <h2>Start with the idea.</h2>
+        {chapter && (
+          <div className="chapter-objectives">
+            <h2>Learning objectives</h2>
+            <ul>
+              {chapter.objectives.map((o) => (
+                <li key={o}>{o}</li>
+              ))}
+            </ul>
+            {chapter.prerequisites.length > 0 && (
+              <p>
+                <strong>Prerequisites: </strong>
+                {chapter.prerequisites.map((id, i) => (
+                  <span key={id}>
+                    {i > 0 ? ', ' : ''}
+                    <Link href={'/learn/' + id}>
+                      {getLesson(id)?.title ?? id}
+                    </Link>
+                  </span>
+                ))}
+              </p>
+            )}
+          </div>
+        )}
+        <section className="chapter-section" id="theory">
+          <h2>Theory</h2>
           {l.intuition.map((p) => (
             <p key={p}>{p}</p>
           ))}
-        </section>
-        <section className="lesson-section" id="steps">
-          <span className="section-index">02 / HOW IT WORKS</span>
-          <h2>One step at a time.</h2>
-          <ol className="numbered-steps">
+          {chapter?.sections.map((s) => (
+            <section key={s.title}>
+              <h3>{s.title}</h3>
+              {s.paragraphs.map((p) => (
+                <p key={p}>{p}</p>
+              ))}
+            </section>
+          ))}
+          <h3>Procedure</h3>
+          <ol>
             {l.steps.map((s) => (
               <li key={s}>{s}</li>
             ))}
           </ol>
         </section>
-        <section className="lesson-section" id="math">
-          <span className="section-index">03 / THE MATHEMATICS</span>
-          <h2>Give the idea a precise shape.</h2>
-          <div
-            className="equation"
-            dangerouslySetInnerHTML={{
-              __html: katex.renderToString(l.formula, {
-                displayMode: true,
-                throwOnError: false,
-                trust: false,
-                output: 'htmlAndMathml',
-              }),
-            }}
-          />
+        <section className="chapter-section" id="mathematics">
+          <h2>Mathematical explanation</h2>
+          <Equation formula={l.formula} />
           <p>{l.symbols}</p>
+          {chapter && (
+            <>
+              <h3>{chapter.derivation.title}</h3>
+              {chapter.derivation.steps.map((step, i) => (
+                <div className="derivation-step" key={i}>
+                  <p>
+                    <strong>Step {i + 1}.</strong> {step.explanation}
+                  </p>
+                  <Equation formula={step.formula} />
+                </div>
+              ))}
+            </>
+          )}
         </section>
-        <section className="worked-example" id="example">
-          <div className="eyebrow">LET’S WORK THROUGH IT</div>
-          <h2>{l.example.title}</h2>
+        <section
+          className="chapter-section chapter-example"
+          id="worked-example"
+        >
+          <h2>Worked example</h2>
+          <h3>{l.example.title}</h3>
           <p>{l.example.body}</p>
-          <ol className="numbered-steps">
+          <ol>
             {l.example.steps.map((s) => (
               <li key={s}>{s}</li>
             ))}
           </ol>
         </section>
-        {l.lab && (
-          <Link href={'/labs?lab=' + l.lab} className="lesson-lab-link">
-            <Cuboid size={27} />
-            <div>
-              <strong>Make the idea move.</strong>
-              <span>Open the interactive visual lab</span>
-            </div>
-            <ArrowUpRight />
-          </Link>
-        )}
-        <section className="lesson-section">
-          <span className="section-index">04 / FROM MATH TO CODE</span>
-          <h2>See the calculation in Python.</h2>
+        <section className="chapter-section" id="code">
+          <h2>Python implementation</h2>
+          <h3>Inspect the calculation</h3>
           <p>
-            This small example uses the Python standard library. Read it here,
-            or edit and run it in the practice studio.
+            This runnable example isolates the calculation using the Python
+            standard library. Use the project notebooks for complete
+            scikit-learn workflows.
           </p>
           <CodeBlock code={l.code} />
-          <Link className="text-link" href={'/practice?lesson=' + l.id}>
-            Run & experiment <ArrowUpRight size={17} />
+          <Link className="button primary" href={'/practice?lesson=' + l.id}>
+            Edit and run this code →
           </Link>
+          {practical && (
+            <div className="chapter-library-example">
+              <h3>{practical.title}</h3>
+              <p>{practical.environment}</p>
+              <CodeBlock code={practical.code} label="Python · scikit-learn" />
+              <a
+                className="button secondary"
+                href={'/examples/' + l.id + '.py'}
+                download
+              >
+                Download complete Python example
+              </a>
+              <p>
+                <strong>Experiment:</strong> {practical.experiment}
+              </p>
+            </div>
+          )}
         </section>
-        <section className="lesson-section pitfalls">
-          <h2>Watch out for these.</h2>
+        <section className="chapter-section" id="visualization">
+          <h2>Visualization</h2>
+          {l.lab ? (
+            <LessonExperiment id={l.lab} />
+          ) : (
+            <div className="concept-flow" aria-label="Calculation sequence">
+              {l.steps.map((step, i) => (
+                <div key={step}>
+                  <span>{i + 1}</span>
+                  <p>{step}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+        {chapter && (
+          <section className="chapter-section" id="case-study">
+            <h2>Real-world application</h2>
+            <h3>{chapter.caseStudy.title}</h3>
+            <p>{chapter.caseStudy.scenario}</p>
+            <h4>Decisions to make</h4>
+            <ol>
+              {chapter.caseStudy.decisions.map((d) => (
+                <li key={d}>{d}</li>
+              ))}
+            </ol>
+            <div className="chapter-note">
+              <strong>Expected deliverable.</strong> {chapter.caseStudy.success}
+            </div>
+          </section>
+        )}
+        <section className="chapter-section">
+          <h2>Common mistakes and limitations</h2>
           <ul>
             {l.pitfalls.map((p) => (
               <li key={p}>{p}</li>
             ))}
           </ul>
         </section>
-        <section className="lesson-section" id="practice">
-          <span className="section-index">05 / CHECK YOUR UNDERSTANDING</span>
-          <h2>Explain it back.</h2>
-          <p>{l.exercise}</p>
-          <RevealAnswer answer={l.solution} />
+        <section className="chapter-section" id="exercises">
+          <h2>Practice exercises</h2>
+          <div className="chapter-problem">
+            <h3>Exercise 1</h3>
+            <p>{l.exercise}</p>
+            <RevealAnswer answer={l.solution} />
+          </div>
+          {chapter?.problems.map((p, i) => (
+            <div className="chapter-problem" key={p.question}>
+              <h3>Exercise {i + 2}</h3>
+              <p>{p.question}</p>
+              <details>
+                <summary>Hint</summary>
+                <p>{p.hint}</p>
+              </details>
+              <details>
+                <summary>Worked solution</summary>
+                <ol>
+                  {p.solution.map((s) => (
+                    <li key={s}>{s}</li>
+                  ))}
+                </ol>
+              </details>
+            </div>
+          ))}
+          <h3>Chapter check</h3>
           <LessonQuiz id={l.id} quiz={l.quiz} />
+          <div className="chapter-note">
+            <strong>Ready for a broader challenge?</strong>{' '}
+            <Link href="/assessment">Take the 30-question ML assessment</Link>.
+            Questions test calculations, assumptions and experimental decisions,
+            with explained answers.
+          </div>
+        </section>
+        <section className="chapter-section" id="reading">
+          <h2>Recommended books, tutorials and videos</h2>
+          {chapter?.reading.map((r) => {
+            const resource = library.find((s) => s.id === r.resource);
+            return resource ? (
+              <a
+                className="chapter-reading"
+                href={resource.url}
+                target="_blank"
+                rel="noreferrer"
+                key={r.resource}
+              >
+                <span>
+                  {resource.kind} · {resource.authors}
+                </span>
+                <h3>{resource.title} ↗</h3>
+                <p>
+                  <strong>Read:</strong> {r.focus}
+                </p>
+                <p>
+                  <strong>Apply:</strong> {r.task}
+                </p>
+              </a>
+            ) : null;
+          })}
+          <a
+            className="chapter-reading"
+            href={video?.url ?? 'https://statquest.org/video_index.html'}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <span>VIDEO REFERENCE · JOSH STARMER</span>
+            <h3>{video?.title ?? 'StatQuest video index'} ↗</h3>
+            <p>
+              {video?.task ??
+                'Find the corresponding statistics or classical-ML topic. Pause before a worked calculation, predict the next step, then compare your explanation.'}
+            </p>
+          </a>
+          <h3>Technical references</h3>
+          <ul>
+            {l.sources.map((s) => (
+              <li key={s.url}>
+                <a href={s.url} target="_blank" rel="noreferrer">
+                  {s.title} ↗
+                </a>
+              </li>
+            ))}
+          </ul>
+          <p className="textbook-meta">
+            These are external references, not republished third-party books or
+            transcripts.{' '}
+            <Link href="/resources">Browse the full resource guide.</Link>
+          </p>
         </section>
         <PersonalNote id={l.id} />
         <LessonProgress id={l.id} />
-        <section className="lesson-section further-reading">
-          <h2>Go to the source.</h2>
-          <p>
-            These references extend the original explanation above. They retain
-            their own authorship and licenses.
-          </p>
-          {l.sources.map((s) => (
-            <a href={s.url} key={s.url} target="_blank" rel="noreferrer">
-              {s.title}
-              <ArrowUpRight size={17} />
-            </a>
-          ))}
-        </section>
         <div className="lesson-pagination">
           {previous ? (
-            <Link href={'/learn/' + previous.id}>
-              <ArrowLeft size={18} />
-              <div>
-                <small>PREVIOUS LESSON</small>
-                <span>{previous.title}</span>
-              </div>
-            </Link>
+            <Link href={'/learn/' + previous.id}>← {previous.title}</Link>
           ) : (
-            <Link href="/learn">Back to the path</Link>
+            <Link href="/learn">Course contents</Link>
           )}
           {next ? (
-            <Link href={'/learn/' + next.id}>
-              <div>
-                <small>UP NEXT</small>
-                <span>{next.title}</span>
-              </div>
-              <ArrowRight size={18} />
-            </Link>
+            <Link href={'/learn/' + next.id}>{next.title} →</Link>
           ) : (
-            <Link href="/practice">
-              Build your next project <ArrowRight size={18} />
-            </Link>
+            <Link href="/assessment">Final ML assessment →</Link>
           )}
         </div>
       </LessonShell>

@@ -186,10 +186,7 @@
     "solution": "The same raw deviation has different meaning under different variances. Calibrate to sensor context or use an appropriate conditional reference.",
     "quiz": {
       "question": "An anomaly score is automatically a probability of wrongdoing.",
-      "options": [
-        "True",
-        "False"
-      ],
+      "options": ["True", "False"],
       "answer": 1,
       "explanation": "It measures unusualness under a model. Meaning and action require context and validation."
     },

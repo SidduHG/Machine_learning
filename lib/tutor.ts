@@ -33,6 +33,9 @@ const aliases: Record<string, string[]> = {
   rmse: ['evaluation'],
   f1: ['evaluation'],
   drift: ['monitoring'],
+  calibration: ['logistic', 'regression', 'evaluation'],
+  pruning: ['decision', 'trees'],
+  bootstrap: ['statistics', 'ensembles'],
 };
 function words(text: string) {
   const raw =
@@ -54,7 +57,13 @@ export function searchLessons(query: string, lessons: Lesson[], limit = 4) {
   return lessons
     .map((l) => {
       const title = words(l.title + ' ' + l.id),
-        intro = words(l.summary + ' ' + l.intuition.join(' '));
+        intro = words(
+          l.summary +
+            ' ' +
+            l.intuition.join(' ') +
+            ' ' +
+            (l.chapter?.sections.flatMap((s) => s.paragraphs).join(' ') ?? ''),
+        );
       let score = terms.reduce(
         (n, t) => n + (title.includes(t) ? 8 : 0) + (intro.includes(t) ? 1 : 0),
         0,
@@ -75,6 +84,20 @@ export function answerQuestion(
   if (!q || q.length > 1000)
     throw new Error('Ask a question between 1 and 1,000 characters.');
   const current = lessons.find((l) => l.id === contextId);
+  if (
+    /\b(attention|transformers?|neural networks?|deep learning|backpropagation|llms?)\b/i.test(
+      q,
+    )
+  )
+    return {
+      matched: false,
+      heading: 'Deep learning is outside this release.',
+      passages: [
+        'This course currently covers classical machine learning. Study regression, trees, ensembles, SVMs, clustering, evaluation and ML engineering here. Neural networks and deep learning are deferred.',
+      ],
+      lessonIds: [],
+      sources: [],
+    };
   const intent = /code|python|implement/i.test(q)
     ? 'code'
     : /math|equation|formula|deriv/i.test(q)
@@ -146,7 +169,22 @@ export function answerQuestion(
     passages = l.pitfalls;
   } else if (intent === 'steps') {
     passages = [l.intuition[0], ...l.steps];
-  } else passages = l.intuition;
+  } else {
+    const terms = words(q);
+    const section = l.chapter?.sections
+      .map((s) => ({
+        section: s,
+        score: terms.reduce(
+          (n, t) =>
+            n +
+            (words(s.title + ' ' + s.paragraphs.join(' ')).includes(t) ? 1 : 0),
+          0,
+        ),
+      }))
+      .sort((a, b) => b.score - a.score)[0];
+    passages =
+      section && section.score > 0 ? section.section.paragraphs : l.intuition;
+  }
   if (
     /loss.*(increas|explod|diverg)|overshoot/i.test(q) &&
     l.id === 'gradient-descent'

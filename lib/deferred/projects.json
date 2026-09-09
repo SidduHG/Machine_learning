@@ -1,0 +1,56 @@
+[
+  {
+    "id": "digits-network",
+    "title": "Recognize handwritten digits",
+    "category": "NEURAL NETWORKS",
+    "level": "Intermediate",
+    "hours": "4–6 hours",
+    "summary": "Train a small dense neural network on 8×8 images and compare it with a linear baseline.",
+    "dataset": "scikit-learn digits benchmark · 1,797 images with 64 pixel features",
+    "source": "https://scikit-learn.org/stable/datasets/toy_dataset.html#optical-recognition-of-handwritten-digits-dataset",
+    "brief": "Build a small image classifier that predicts digits 0–9. Begin with logistic regression, then compare a multilayer perceptron. The network is a compact CPU-friendly scikit-learn model; extending it to a PyTorch CNN is a separate challenge.",
+    "steps": [
+      "Load the 8×8 images, inspect pixel range, and understand the flattened 64-feature representation.",
+      "Make a stratified train/test split before selecting architecture.",
+      "Fit scaled logistic regression and a one-hidden-layer MLP with early stopping using an internal training-validation split.",
+      "Report test accuracy and a confusion matrix. Inspect wrong predictions by reshaping the feature vectors back into images.",
+      "Document training duration, parameter choices and the limits of performance on this small benchmark."
+    ],
+    "rubric": [
+      "The final test remains unused by early stopping.",
+      "A linear baseline and MLP use identical test records.",
+      "The report distinguishes the flat dense network from a convolutional architecture.",
+      "Misclassifications are inspected, not just counted.",
+      "The notebook runs on a CPU with fixed random seeds."
+    ],
+    "extension": "Implement an equivalent PyTorch training loop, then try a small CNN. Compare parameter count, runtime, and held-out performance.",
+    "code": "from sklearn.datasets import load_digits\nfrom sklearn.model_selection import train_test_split\nfrom sklearn.pipeline import make_pipeline\nfrom sklearn.preprocessing import StandardScaler\nfrom sklearn.linear_model import LogisticRegression\nfrom sklearn.neural_network import MLPClassifier\nfrom sklearn.metrics import accuracy_score, confusion_matrix\n\ndigits=load_digits()\nX_train,X_test,y_train,y_test=train_test_split(digits.data,digits.target,test_size=.2,stratify=digits.target,random_state=42)\nmodels={'Linear':make_pipeline(StandardScaler(),LogisticRegression(max_iter=1000)), 'MLP':make_pipeline(StandardScaler(),MLPClassifier(hidden_layer_sizes=(48,),early_stopping=True,max_iter=120,random_state=42))}\nfor name,model in models.items():\n    model.fit(X_train,y_train)\n    predictions=model.predict(X_test)\n    print(name,'Accuracy:',round(accuracy_score(y_test,predictions),4))\n    print('First mistakes:',[(int(a),int(b)) for a,b in zip(y_test,predictions) if a!=b][:10])\n    print(confusion_matrix(y_test,predictions))\n"
+  },
+  {
+    "id": "retrieval-system",
+    "title": "Build an evidence-first study assistant",
+    "category": "AI ENGINEERING",
+    "level": "Intermediate",
+    "hours": "4–6 hours",
+    "summary": "Create and evaluate a retrieval system before connecting a language model.",
+    "dataset": "A small original course-note collection included in the notebook",
+    "source": "https://arxiv.org/abs/2005.11401",
+    "brief": "Build the retrieval layer for a question-answering system. Begin with a transparent lexical baseline, preserve source IDs, and refuse to invent evidence for unrelated questions. The runnable notebook performs retrieval; adding a generative model is an optional extension that requires your own provider credentials.",
+    "steps": [
+      "Write a small permitted collection with stable source IDs and topic-specific passages.",
+      "Tokenize consistently and score term overlap as a baseline.",
+      "Return ranked evidence and abstain when no content terms match.",
+      "Create a held-out set of questions with expected sources and report top-1 source accuracy.",
+      "Document failures from synonyms and vocabulary mismatch. Compare a TF-IDF or embedding retriever before adding generation."
+    ],
+    "rubric": [
+      "Every answer-like result includes its source ID.",
+      "An unrelated question yields no matching evidence.",
+      "Evaluation questions are separate from ranking logic.",
+      "The report separates retrieval accuracy from generated-answer quality.",
+      "No provider secret appears in source code or notebook output."
+    ],
+    "extension": "Add semantic retrieval and reranking. If you connect a language model, evaluate citation support and resistance to instructions embedded in retrieved documents.",
+    "code": "import re\nnotes={\n 'gradient-descent':'gradient descent updates weights in the negative gradient direction with a learning rate',\n 'regularization':'regularization penalizes large weights and can reduce overfitting',\n 'pca':'principal component analysis pca projects data onto directions of high variance',\n 'evaluation':'precision counts correct positive predictions recall counts recovered actual positives'\n}\nstop={'the','a','an','is','in','of','how','what','does','to','and','can'}\ndef tokens(text):\n    return set(re.findall(r'[a-z]+',text.lower()))-stop\ndef retrieve(question):\n    ranked=sorted(((len(tokens(question)&tokens(text)),key) for key,text in notes.items()),reverse=True)\n    return ranked[0][1] if ranked[0][0]>0 else None\nquestions=[('How does gradient descent use learning rate?','gradient-descent'),('What reduces overfitting?','regularization'),('How does PCA preserve variance?','pca'),('How is recall calculated?','evaluation')]\ncorrect=0\nfor question,expected in questions:\n    source=retrieve(question)\n    correct += source==expected\n    print(question,'=>',source)\nprint('Top-1 source accuracy:',correct/len(questions))\nprint('Unrelated question:',retrieve('How should I bake a cake?'))\n"
+  }
+]
