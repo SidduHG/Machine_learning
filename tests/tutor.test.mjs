@@ -14,7 +14,7 @@ test('named topics return correct primary lessons and grounded passages', () => 
     ['Explain linear regression', 'linear-regression'],
     ['Explain PCA simply', 'pca'],
     ['What is data leakage?', 'data-preparation'],
-    ['How does attention work?', 'attention'],
+    ['How does k-means work?', 'k-means'],
     ['Why does my loss increase?', 'gradient-descent'],
   ]) {
     const answer = answerQuestion(q, lessons);

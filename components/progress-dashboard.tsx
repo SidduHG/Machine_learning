@@ -31,7 +31,11 @@ export function ProgressDashboard({
     lessons.find((l) => l.id === progress.lastLesson) ??
     lessons.find((l) => !progress.completed.includes(l.id)) ??
     lessons[0];
-  const savedGroups: [string, Summary[]][] = [['bookmarks',bookmarks],['notes',noted],['completed',completed]];
+  const savedGroups: [string, Summary[]][] = [
+    ['bookmarks', bookmarks],
+    ['notes', noted],
+    ['completed', completed],
+  ];
   return (
     <>
       <div className="progress-overview">

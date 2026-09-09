@@ -1,0 +1,500 @@
+[
+  {
+    "id": "linear-regression",
+    "objectives": [
+      "Derive the least-squares gradient and explain what a coefficient measures.",
+      "Distinguish a good training fit from useful future predictions.",
+      "Diagnose residual structure and compare a model with a meaningful baseline."
+    ],
+    "prerequisites": [
+      "linear-algebra",
+      "calculus",
+      "data-preparation"
+    ],
+    "sections": [
+      {
+        "title": "A line is a claim about how the world changes",
+        "paragraphs": [
+          "Suppose a delivery team predicts trip duration from distance. A model of the form predicted minutes = 4 × kilometers + 8 claims that each additional kilometer contributes four minutes, while eight minutes are needed even at zero distance. The intercept might represent pickup and unloading. It is an interpretation of the fitted relationship, not proof that distance causes exactly that increase. Traffic, route type and which trips were recorded can all affect the coefficient.",
+          "With several inputs, a coefficient describes a change while the other represented inputs are held fixed. That condition matters: distance and fuel use may be strongly related, making their separate effects unstable. Linear regression is linear in its parameters; you may include squared distance or an interaction as a feature and still fit a linear model. You must choose those transformations using training and validation data, not because they improve the final test score."
+        ]
+      },
+      {
+        "title": "Why squared error leads to this particular fit",
+        "paragraphs": [
+          "Residual means observed target minus prediction. Squaring residuals makes positive and negative errors contribute positively and penalizes large misses more strongly. For errors of 1, 1 and 8 minutes, squared contributions are 1, 1 and 64: the last trip dominates the objective. This is useful when large errors are especially undesirable, but a corrupted target can pull the line substantially. MAE represents a different preference and generally produces a different optimum.",
+          "Least squares minimizes training error within the chosen feature representation. It does not minimize every possible future error. A residual plot should be inspected: a curved pattern suggests missing nonlinear structure, while a widening spread suggests nonconstant error variance. Gaussian noise is not required to compute the least-squares solution. Distributional and independence assumptions become important when interpreting classical confidence intervals and tests. A prediction can be useful even when a causal interpretation of its coefficient is unjustified."
+        ]
+      },
+      {
+        "title": "Fit a procedure, then evaluate the procedure",
+        "paragraphs": [
+          "Reserve observations that represent the future use case. Learn imputation, scaling, transformations and regression coefficients only from the training partition. If trips repeat for the same driver, a random row split might exaggerate performance on unseen drivers; a group split addresses a different, more relevant question. Start with the training mean as a constant baseline and evaluate it on exactly the same held-out records as the model.",
+          "Report error in the target's units. An RMSE of 6.2 minutes is easier to interpret than a bare squared-error total. R² compares squared error with a constant prediction based on the evaluation target mean; it can be negative. Never present it as a universal percentage of prediction accuracy. Examine errors for long trips and rare routes, and avoid extrapolating far outside the training range. A line has no built-in understanding that time cannot become negative."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "From squared residuals to a parameter update",
+      "steps": [
+        {
+          "explanation": "For n examples, predict with a slope w and intercept b. The factor 1/(2n) makes the derivative cleaner; it does not change the minimizer.",
+          "formula": "J(w,b)=\\frac{1}{2n}\\sum_{i=1}^{n}(wx_i+b-y_i)^2"
+        },
+        {
+          "explanation": "Apply the chain rule. Changing w changes each prediction by x_i; changing b changes every prediction by one. Notice that prediction minus observation is the negative of the residual convention used above.",
+          "formula": "\\frac{\\partial J}{\\partial w}=\\frac1n\\sum_i(wx_i+b-y_i)x_i,\\quad\\frac{\\partial J}{\\partial b}=\\frac1n\\sum_i(wx_i+b-y_i)"
+        },
+        {
+          "explanation": "For x = [1,2], y = [3,5], and w=b=0, the gradients are −6.5 and −4. A step of size 0.1 gives w=0.65 and b=0.4. The half-MSE drops from 8.5 to 3.673125.",
+          "formula": "w'=0-0.1(-6.5)=0.65,\\quad b'=0-0.1(-4)=0.4"
+        },
+        {
+          "explanation": "Setting gradients to zero yields the normal equations. The inverse expression requires independent columns. In practice, use a solver based on stable matrix factorizations rather than computing this inverse explicitly.",
+          "formula": "X^TX\\hat\\beta=X^Ty,\\qquad\\hat\\beta=(X^TX)^{-1}X^Ty"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "Predict delivery time without promising impossible precision",
+      "scenario": "A dispatch team has historical trips with distance, hour, driver and final duration. Predictions are needed when a job is assigned, before the route is completed.",
+      "decisions": [
+        "Exclude actual arrival time and any feature recorded after assignment. Write down when each feature becomes available.",
+        "Use a chronological holdout for future trips. If the service is expanding to new drivers, add a separate driver-group evaluation.",
+        "Compare the mean baseline, distance-only regression and a regularized multi-feature pipeline on the same validation folds.",
+        "Inspect late-arrival errors by distance and hour. A small global MAE may conceal failures during peak traffic."
+      ],
+      "success": "Deliver a reproducible error report, a baseline comparison and a statement of the operating range. Do not turn a point prediction into a guaranteed arrival time."
+    },
+    "problems": [
+      {
+        "question": "Targets are [2,4,6] and predictions are [3,4,5]. Compute MAE, MSE and RMSE. Explain why one unusually large error would separate these metrics more strongly.",
+        "hint": "Compute the three residual magnitudes first; average before taking the square root.",
+        "solution": [
+          "Absolute errors are [1,0,1], so MAE = 2/3.",
+          "Squared errors are [1,0,1], so MSE = 2/3 and RMSE = sqrt(2/3), approximately 0.8165.",
+          "Squaring makes a large miss dominate the MSE sum. RMSE converts the result back to target units while retaining this sensitivity."
+        ]
+      },
+      {
+        "question": "Two input columns are identical. Why can different coefficient pairs make exactly the same predictions, and what should you do?",
+        "hint": "Write w₁x + w₂x as a single product.",
+        "solution": [
+          "Only the sum w₁+w₂ is identified, so many pairs have the same loss.",
+          "Remove redundant features or use a documented regularized solver. Do not interpret either coefficient as a uniquely measured effect.",
+          "Check stability across training resamples and evaluate predictions separately from coefficient interpretation."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "islp",
+        "focus": "Chapter 3: linear regression, coefficient interpretation and model assessment.",
+        "task": "Draw a residual pattern that a straight line cannot explain and propose a feature transformation."
+      },
+      {
+        "resource": "inria",
+        "focus": "Linear models and the preprocessing pipeline lessons.",
+        "task": "Reproduce a baseline comparison with all learned preprocessing inside the pipeline."
+      }
+    ]
+  },
+  {
+    "id": "gradient-descent",
+    "objectives": [
+      "Explain gradient direction, learning rate and the difference between optimization and generalization.",
+      "Derive a convergence condition for a simple quadratic.",
+      "Diagnose divergence, slow progress and poorly scaled features."
+    ],
+    "prerequisites": [
+      "calculus",
+      "linear-regression"
+    ],
+    "sections": [
+      {
+        "title": "The landscape lives in parameter space",
+        "paragraphs": [
+          "A point on the regression lab's 3D surface represents one complete model: horizontal coordinates are its slope and intercept, and height is its training loss. Moving the point changes the model, not the dataset. The gradient is a vector of partial derivatives describing the steepest local increase in loss under the Euclidean distance convention. Subtracting a small multiple of it therefore gives a local descent direction.",
+          "A derivative is local information. It does not tell you that any distance traveled in that direction is safe. Think of measuring a downhill slope with your foot: a small step can descend, while a huge step can carry you across the valley and up the other side. This is why the learning rate is part of the algorithm rather than a cosmetic animation control. The lab recomputes the loss after every actual update, so a bad step should visibly increase it."
+        ]
+      },
+      {
+        "title": "Scaling changes the shape the optimizer sees",
+        "paragraphs": [
+          "Imagine a model with distance measured in kilometers and price measured in individual currency units. If one feature's typical magnitude is a thousand times another's, the same coefficient change can affect predictions very differently. For least squares this often creates elongated loss contours. A rate small enough for the steep direction can make progress painfully slow along the shallow direction.",
+          "Standardizing training features can improve this conditioning. The learned means and scales must then be reused for validation and deployment. Standardization is not automatically appropriate for every feature or model, and it changes coefficient units. Track the actual objective, gradient magnitude and parameter changes. If losses become nonfinite, stop and inspect scale, derivatives and rate; do not silently replace the result with a claim of convergence."
+        ]
+      },
+      {
+        "title": "Choose a stopping rule that answers the right question",
+        "paragraphs": [
+          "Batch gradient descent uses the full training dataset for each gradient. Stochastic and mini-batch versions use fewer examples and therefore have noisy steps. A single upward mini-batch loss does not establish divergence; the batches differ. Compare trends on a consistent reference set and average over appropriate windows. A deterministic seed helps reproduce the random order, but does not make the estimate less noisy.",
+          "Stopping when training loss barely changes is an optimization criterion. Stopping because validation error begins to worsen is a model-selection decision. These are different signals. A sufficiently flexible model can optimize its training objective extremely well and still generalize poorly. Keep the final test set outside both choices. For ordinary linear least squares, a direct numerical solver is often preferable; the iterative lab exists to expose the mechanism used in many larger optimization problems."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "When does a quadratic update actually converge?",
+      "steps": [
+        {
+          "explanation": "Use a one-parameter objective whose minimum is at w=3. Its gradient is the signed distance from that minimum.",
+          "formula": "J(w)=\\tfrac12(w-3)^2,\\qquad J'(w)=w-3"
+        },
+        {
+          "explanation": "Define error e_t = w_t−3. Substituting the update shows that every step multiplies the previous error by 1−η.",
+          "formula": "w_{t+1}=w_t-\\eta(w_t-3),\\qquad e_{t+1}=(1-\\eta)e_t"
+        },
+        {
+          "explanation": "Error shrinks when the magnitude of that multiplier is below one. Rates between one and two oscillate while converging. At two, the error flips sign without shrinking; above two, it grows.",
+          "formula": "|1-\\eta|<1\\iff0<\\eta<2"
+        },
+        {
+          "explanation": "A positive curvature a rescales the safe range. A multivariate quadratic has several curvatures; the largest eigenvalue controls the upper limit for a fixed learning rate.",
+          "formula": "J(w)=\\tfrac a2(w-c)^2\\Rightarrow0<\\eta<2/a"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "A training run explodes after adding a feature",
+      "scenario": "A regression implementation worked on normalized features. After adding annual revenue in raw currency units, loss becomes enormous within a few steps.",
+      "decisions": [
+        "Check feature ranges and confirm that the gradient is evaluated at the old parameters before updating all parameters together.",
+        "Compare the analytical gradient with a central finite difference on a tiny dataset. This distinguishes a coding error from poor conditioning.",
+        "Fit scaling only on training data, reduce the learning rate and plot loss on the same examples after each update.",
+        "Compare the final predictions with a library least-squares solution before attempting mini-batch optimization."
+      ],
+      "success": "A stable objective trajectory and agreement with the reference solution on a controlled problem. A lower training loss alone is not evidence of better deployment quality."
+    },
+    "problems": [
+      {
+        "question": "Start w=0 on J(w)=½(w−3)². Compute two updates for η=0.5 and η=2.5.",
+        "hint": "Use w_new = w−η(w−3).",
+        "solution": [
+          "With 0.5: w₁=1.5, w₂=2.25. Distance to 3 halves on each step.",
+          "With 2.5: w₁=7.5, w₂=−3.75. Distance grows by a factor of 1.5 with alternating sign.",
+          "The second path diverges despite always stepping opposite the current gradient."
+        ]
+      },
+      {
+        "question": "Training loss decreases smoothly while validation loss rises. Should you keep lowering the learning rate until validation loss decreases?",
+        "hint": "Distinguish fitting the objective from fitting a useful model.",
+        "solution": [
+          "The optimizer may be doing its job while the model overfits.",
+          "Use a predeclared validation-based stopping rule, compare regularization and inspect data leakage or mismatch.",
+          "A learning-rate adjustment is not a general solution to overfitting, and the final test set must not guide these decisions."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "cs229",
+        "focus": "Supervised-learning notes: least squares and gradient updates.",
+        "task": "Derive the vector gradient and annotate the dimensions of X, y and the parameters."
+      },
+      {
+        "resource": "google",
+        "focus": "Linear regression: gradient descent and learning rate.",
+        "task": "Predict stable and unstable trajectories before trying the same settings in the Atlas lab."
+      }
+    ]
+  },
+  {
+    "id": "regularization",
+    "objectives": [
+      "Relate model flexibility to bias, variance and held-out error.",
+      "Explain the different geometry of ridge and lasso penalties.",
+      "Tune model complexity without leaking validation information."
+    ],
+    "prerequisites": [
+      "linear-regression",
+      "statistics"
+    ],
+    "sections": [
+      {
+        "title": "A small training error can be an expensive illusion",
+        "paragraphs": [
+          "A flexible model can react to patterns that exist only because a finite dataset was sampled. If you repeatedly collect equally sized training datasets, fit the same procedure and predict at one fixed input, the predictions can vary. That variation is part of variance. Bias describes a systematic difference between the average prediction and the underlying conditional mean. Noise in outcomes can remain even with the correct mean function.",
+          "Regularization deliberately restricts the fitted model. It may increase training error while improving prediction on new observations. This is a tradeoff, not a promise: an excessively strong constraint can remove useful signal. A high-degree polynomial fitted to five noisy points may pass through every training point and behave wildly between them. Penalizing its coefficients or reducing its degree can make its predictions less sensitive to the particular sample."
+        ]
+      },
+      {
+        "title": "Ridge shrinks; lasso can select",
+        "paragraphs": [
+          "Ridge adds a squared-coefficient penalty to the fitting objective. Large coefficients become expensive, and correlated predictors tend to share the available weight. Lasso uses an absolute-value penalty, whose corners can put some coefficients exactly at zero. A zero is a property of a fitted penalized solution, not proof that a variable has no relationship with the outcome. With correlated alternatives, selection can be unstable.",
+          "Penalty strength has meaning only relative to how loss and features are scaled. A coefficient for revenue measured in cents has a different magnitude from one measured in dollars. Standardize appropriate numeric features within the training pipeline before comparing shrinkage. Usually the intercept is not penalized. Elastic net combines L1 and L2 penalties; it can be useful when sparse selection and correlated predictors both matter. Check each library's objective convention rather than assuming identically named parameters match."
+        ]
+      },
+      {
+        "title": "Use validation to choose an entire modeling procedure",
+        "paragraphs": [
+          "Prepare a grid of penalty strengths on a logarithmic scale, such as 0.01, 0.1, 1, 10 and 100. Cross-validation must refit both the scaler and estimator separately within each training fold. Select the setting using the declared validation metric, then refit the selected pipeline on the available development data. Evaluate once on the untouched final test set and report the selected procedure, not only the winning score.",
+          "A learning curve helps distinguish two common situations. Low training error with much worse validation error suggests high variance or dataset mismatch. Both errors being high suggests limited model capacity, weak features or an unsuitable objective. These are diagnostic patterns rather than logical proofs. More data may help a high-variance model; it will not repair a target that was defined incorrectly. Compare plausible feature improvements before treating parameter tuning as the whole job."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Shrinkage in a one-dimensional problem",
+      "steps": [
+        {
+          "explanation": "Let a be the unregularized optimum in a simple standardized quadratic problem. Ridge balances staying near a against keeping the coefficient small.",
+          "formula": "J(w)=\\tfrac12(w-a)^2+\\tfrac\\lambda2w^2"
+        },
+        {
+          "explanation": "Set the derivative to zero. Larger λ moves w continuously toward zero, while λ=0 recovers a.",
+          "formula": "(w-a)+\\lambda w=0\\Rightarrow\\hat w=\\frac{a}{1+\\lambda}"
+        },
+        {
+          "explanation": "For the corresponding L1 objective, the absolute value has a corner at zero. The solution soft-thresholds a; values inside the threshold become exactly zero.",
+          "formula": "\\hat w=\\operatorname{sign}(a)\\max(|a|-\\lambda,0)"
+        },
+        {
+          "explanation": "If a=4 and λ=1, ridge gives 2 under the displayed ridge convention, while lasso gives 3 under the displayed L1 convention. Different penalty definitions mean numerical λ values are not directly comparable across objectives.",
+          "formula": "\\hat w_{\\mathrm{ridge}}=4/(1+1)=2,\\quad\\hat w_{\\mathrm{lasso}}=4-1=3"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "A small dataset with many related measurements",
+      "scenario": "A manufacturer has 180 labeled batches and 90 partly redundant sensor summaries. An unregularized model fits training data closely but varies sharply across splits.",
+      "decisions": [
+        "Check whether multiple rows come from the same batch or production run, and split by the appropriate group.",
+        "Compare a mean baseline, ridge and a simpler feature set using identical folds. Put imputation and scaling inside each candidate pipeline.",
+        "Inspect coefficient stability across resamples; do not market a lasso-selected sensor as a causal discovery.",
+        "Record the full validation curve and choose a stable region rather than reporting only the best of many nearly tied settings."
+      ],
+      "success": "A reproducible procedure with held-out errors and an honest explanation of uncertainty. The fitted coefficient list is not a scientific mechanism."
+    },
+    "problems": [
+      {
+        "question": "Using the displayed ridge objective with a=6, compute w for λ=0, 2 and 5. What happens to training fit as λ grows?",
+        "hint": "Divide a by 1+λ.",
+        "solution": [
+          "The coefficients are 6, 2 and 1 respectively.",
+          "They move away from the unregularized training optimum and toward zero.",
+          "This increases this example's fitting term; whether future error improves requires held-out evaluation."
+        ]
+      },
+      {
+        "question": "A scaler is fitted once before cross-validation, then ridge is tuned within folds. Is the procedure clean?",
+        "hint": "The scaler estimates means and standard deviations from observations.",
+        "solution": [
+          "No. Validation-fold values contributed to the preprocessing statistics.",
+          "Place StandardScaler and Ridge in one pipeline that cross-validation refits within each fold.",
+          "Even label-free transformations can leak information about held-out data."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "islp",
+        "focus": "Chapter 6: linear model selection and regularization.",
+        "task": "Compare ridge and lasso coefficient paths and explain the influence of correlated features."
+      },
+      {
+        "resource": "inria",
+        "focus": "Overfitting, underfitting and validation curves.",
+        "task": "Plot both training and validation scores as regularization changes."
+      }
+    ]
+  },
+  {
+    "id": "logistic-regression",
+    "objectives": [
+      "Connect log-odds, sigmoid probabilities and cross-entropy loss.",
+      "Separate fitting probabilities from choosing a decision threshold.",
+      "Reason about calibration, class imbalance and the cost of mistakes."
+    ],
+    "prerequisites": [
+      "probability",
+      "linear-regression",
+      "gradient-descent"
+    ],
+    "sections": [
+      {
+        "title": "A linear score can describe a nonlinear probability",
+        "paragraphs": [
+          "For binary classification, a linear regression prediction can fall below zero or above one. Logistic regression instead creates a real-valued score z and passes it through a sigmoid. The result lies between zero and one and represents a modeled probability for the positive class. The score is linear in the represented features, but the probability is not. A constant increase in score has a smaller probability effect near zero or one than near the center.",
+          "The log-odds interpretation makes coefficients precise. Adding one unit of a feature changes log-odds by its coefficient while other represented features stay fixed. Exponentiating that coefficient gives an odds multiplier, not a probability multiplier. If a coefficient is log(2), odds double, but a probability of 0.2 becomes 1/3 rather than 0.4. Association, scaling and confounding still matter; a coefficient is not automatically a causal effect."
+        ]
+      },
+      {
+        "title": "The loss asks the model to be correct about uncertainty",
+        "paragraphs": [
+          "Binary cross-entropy is the negative log-likelihood for Bernoulli outcomes under the model. A positive example predicted at 0.9 incurs a small loss, while the same positive example predicted at 0.01 incurs a large one. A confidently wrong probability is therefore penalized heavily. Compute the loss through numerically stable library functions from logits when available; directly taking log of a rounded zero can create infinities.",
+          "Good ranking and good probability calibration are different properties. A classifier can place most positives above negatives yet assign probabilities that are too extreme. A reliability diagram groups predictions and compares them with observed positive frequencies; finite bins and small samples make the picture noisy. If probabilities support a cost decision, assess calibration on held-out data. Fit any calibrator using an appropriate development split or cross-validation, never the final test labels."
+        ]
+      },
+      {
+        "title": "The threshold belongs to the decision, not the algorithm's identity",
+        "paragraphs": [
+          "A threshold of 0.5 is a convention for symmetric decisions, not a law of logistic regression. Lowering a threshold generally predicts more positives, which may recover missed cases while increasing false alarms. Choose it using the application's costs or capacity constraints and validation data. For a review team that can inspect only 100 records a day, ranking within that capacity may be more useful than reporting accuracy at 0.5.",
+          "Class weighting changes the training objective. It can improve attention to rare outcomes, but it may also change the interpretation of unadjusted predicted probabilities. Resampling must happen within training folds; duplicating rare examples before splitting can place copies on both sides. Always report the positive-class definition and prevalence, inspect a confusion matrix, and compare with a simple baseline. A dataset with one percent positives makes a 99-percent-accurate always-negative classifier possible."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "From a linear score to a probability and a cost decision",
+      "steps": [
+        {
+          "explanation": "Define the sigmoid. Rearranging its odds recovers the linear score, showing exactly where linearity enters the model.",
+          "formula": "p=\\frac1{1+e^{-z}},\\quad z=w^Tx+b,\\quad\\log\\frac p{1-p}=z"
+        },
+        {
+          "explanation": "For a binary target y, the negative log-likelihood penalizes the probability assigned to the observed outcome.",
+          "formula": "\\ell(y,p)=-y\\log p-(1-y)\\log(1-p)"
+        },
+        {
+          "explanation": "The derivative with respect to z simplifies to p−y. Multiply by the input to obtain the coefficient gradient for one example.",
+          "formula": "\\frac{\\partial\\ell}{\\partial z}=p-y,\\qquad\\nabla_w\\ell=(p-y)x"
+        },
+        {
+          "explanation": "If a false positive costs C_FP and a false negative costs C_FN, choose positive when its expected cost is lower. This threshold assumes calibrated probabilities and no additional costs or capacity constraints.",
+          "formula": "C_{FP}(1-p)<C_{FN}p\\iff p>\\frac{C_{FP}}{C_{FP}+C_{FN}}"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "Route likely late deliveries for manual review",
+      "scenario": "A logistics team needs to identify jobs at risk of lateness. Missing a late job is more costly than reviewing a job that would arrive on time, but the review team has limited capacity.",
+      "decisions": [
+        "Define lateness and the prediction timestamp before collecting features. Use only information available at dispatch.",
+        "Fit a regularized logistic pipeline and evaluate on later time periods. Track prevalence changes across periods.",
+        "Inspect precision and recall at several validation thresholds and count the resulting review queue, rather than choosing the threshold on test data.",
+        "Check whether observed late-job rates agree with predicted probabilities before using expected-cost calculations."
+      ],
+      "success": "A declared threshold or capacity policy, an estimated review workload and a held-out error breakdown. A probability by itself is not an operational policy."
+    },
+    "problems": [
+      {
+        "question": "A record has positive probability 0.2. False positives cost 1 and false negatives cost 9. Which action has lower expected error cost?",
+        "hint": "Compute the cost of each action directly before applying the threshold formula.",
+        "solution": [
+          "Predicting positive has expected cost 1×0.8=0.8.",
+          "Predicting negative has expected cost 9×0.2=1.8.",
+          "Positive is preferred under these assumptions; the threshold is 1/(1+9)=0.1. Reassess if capacity or calibration changes."
+        ]
+      },
+      {
+        "question": "A model's odds double from an initial probability of 0.25. What is the new probability?",
+        "hint": "Convert probability to odds, multiply, then convert back.",
+        "solution": [
+          "Initial odds are 0.25/0.75=1/3.",
+          "Doubled odds are 2/3, corresponding to p=(2/3)/(1+2/3)=0.4.",
+          "Doubling odds did not double probability; the latter would incorrectly give 0.5."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "islp",
+        "focus": "Chapter 4: logistic regression and classification assessment.",
+        "task": "Explain an odds ratio in words without calling it a probability ratio."
+      },
+      {
+        "resource": "sklearn",
+        "focus": "Logistic regression, probability calibration and decision-threshold tuning sections.",
+        "task": "Write a split plan that keeps model fitting, calibration and threshold selection away from the final test labels."
+      }
+    ]
+  },
+  {
+    "id": "evaluation",
+    "objectives": [
+      "Select metrics that reflect a prediction task and the costs of errors.",
+      "Design splits for independent, grouped and chronological data.",
+      "Report uncertainty and subgroup failures without tuning on the final test set."
+    ],
+    "prerequisites": [
+      "statistics",
+      "data-preparation",
+      "logistic-regression"
+    ],
+    "sections": [
+      {
+        "title": "Define the question before choosing a score",
+        "paragraphs": [
+          "An evaluation asks how a complete prediction procedure will behave on some future population. A random split estimates performance on observations resembling the mixed sample, under appropriate independence assumptions. It does not automatically estimate future-time, new-hospital, new-customer or new-country performance. Write a sentence such as 'predict next month's demand for existing stores using information available the previous day.' That sentence determines eligible features, split boundaries and relevant error units.",
+          "The final test set is a limited measurement resource. Looking at its score and changing the model is a use of its information, even if no gradient was computed on it. After enough choices it becomes another validation set. Separate development from final assessment, log experiments and declare the primary metric in advance. If you discover an important data problem through a final evaluation, fix it transparently and obtain an appropriately fresh assessment when possible."
+        ]
+      },
+      {
+        "title": "A metric encodes what you value",
+        "paragraphs": [
+          "For regression, MAE weighs error magnitude linearly while RMSE emphasizes large errors. MAPE behaves badly near zero and can make comparisons misleading when targets cross zero. R² is relative to a constant reference and may be negative on held-out data. Always report target units and a baseline. A model with lower RMSE may still be unsuitable when its worst errors occur in a critical region.",
+          "For classification, precision describes the fraction of predicted positives that are positive; recall describes the fraction of actual positives recovered. F1 balances these two through a harmonic mean but ignores true negatives and does not encode arbitrary business costs. ROC AUC measures ranking across positive-negative pairs and thresholds; precision-recall curves are often more informative for rare-positive workflows, but they depend on prevalence. AUC is not a probability-calibration score or a chosen operating threshold."
+        ]
+      },
+      {
+        "title": "Uncertainty and slices keep the result honest",
+        "paragraphs": [
+          "A score computed on a finite sample has uncertainty. Compare candidate models on the same held-out examples or folds so changes in difficulty do not masquerade as model improvements. Cross-validation folds are not fully independent replicates because their training sets overlap. A fold-score standard deviation is useful descriptive information, but it is not automatically a valid confidence interval for the selected model's future performance.",
+          "Inspect meaningful slices defined before outcome fishing: time period, device type, region, label quality or input range. Tiny slices produce unstable estimates; include denominators and avoid confident conclusions from a handful of errors. Resampling uncertainty estimates must respect the sampling unit. Bootstrap customers rather than individual transactions when observations within a customer are dependent. Finally, a statistically detectable difference can be operationally irrelevant once latency, maintenance and review costs are included."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Read a confusion matrix as counts and decisions",
+      "steps": [
+        {
+          "explanation": "Suppose a test set contains 20 actual positives. The model identifies 15, misses five and also flags 10 actual negatives. Start with counts so the denominators are visible.",
+          "formula": "TP=15,\\quad FN=5,\\quad FP=10,\\quad TN=70"
+        },
+        {
+          "explanation": "Precision answers a question about the predicted-positive queue. Recall answers a question about the actual-positive population. Their denominators differ.",
+          "formula": "\\mathrm{precision}=15/25=0.6,\\quad\\mathrm{recall}=15/20=0.75"
+        },
+        {
+          "explanation": "The count form of F1 avoids rounding the preceding rates. Accuracy uses all 100 examples and tells a different story.",
+          "formula": "F_1=\\frac{2TP}{2TP+FP+FN}=\\frac{30}{45}=\\frac23,\\quad\\mathrm{accuracy}=85/100"
+        },
+        {
+          "explanation": "Expected realized error cost weights the counts by application costs. This is one reason a threshold with the best F1 need not minimize operational cost.",
+          "formula": "\\mathrm{cost}=C_{FN}FN+C_{FP}FP"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "A fraud detector with an impressive headline score",
+      "scenario": "Only one in 200 historical transactions is labeled fraudulent. A team reports 99.5% accuracy and proposes automatic blocking.",
+      "decisions": [
+        "Calculate the always-negative baseline: it already achieves 99.5% accuracy on this prevalence.",
+        "Evaluate later transactions and keep repeated customer behavior from leaking across any new-customer evaluation.",
+        "Report precision, recall, false-positive count, review volume and relevant costs at a threshold selected on development data.",
+        "Investigate delayed or incomplete fraud labels and the effect of past blocking policies on which outcomes are observed."
+      ],
+      "success": "A measured improvement over the baseline at an operationally acceptable workload, plus a monitored rollout plan. The original accuracy headline alone proves no value."
+    },
+    "problems": [
+      {
+        "question": "A validation set has TP=8, FP=2, FN=12 and TN=78. Calculate precision, recall and F1. Why can 86% accuracy still hide a weak detector?",
+        "hint": "There are 20 positives, but only eight were found.",
+        "solution": [
+          "Precision is 8/10=0.8. Recall is 8/20=0.4.",
+          "F1 is 16/(16+2+12)=16/30, approximately 0.5333.",
+          "Accuracy counts many true negatives while the model misses 60% of positive cases. Suitability depends on the cost and use case."
+        ]
+      },
+      {
+        "question": "You try 100 model settings and report the largest score from the same test set. What is wrong, and how would you redesign the study?",
+        "hint": "Selection uses information even when it does not call fit().",
+        "solution": [
+          "The test set guided selection; the winning score can reflect favorable noise as well as model quality.",
+          "Tune on training/validation folds, lock the procedure, then assess it on a separate final holdout.",
+          "Use nested validation when the goal is to estimate a tuning procedure under limited data, and report the design and uncertainty."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "inria",
+        "focus": "Cross-validation and model evaluation lessons.",
+        "task": "Select split strategies for repeated customers, future dates and independent tabular observations."
+      },
+      {
+        "resource": "islp",
+        "focus": "Chapter 5: resampling methods, followed by classification metric examples in Chapter 4.",
+        "task": "Explain why choosing the maximum validation score creates selection bias even for unbiased individual estimates."
+      }
+    ]
+  }
+]

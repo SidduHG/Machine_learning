@@ -1,0 +1,478 @@
+[
+  {
+    "id": "linear-algebra",
+    "objectives": [
+      "Track dimensions through a vectorized prediction.",
+      "Interpret dot products, norms, matrix multiplication and projections geometrically.",
+      "Recognize rank deficiency and prefer stable numerical solvers."
+    ],
+    "prerequisites": [
+      "arrays"
+    ],
+    "sections": [
+      {
+        "title": "Shapes are a language for checking reasoning",
+        "paragraphs": [
+          "Represent a dataset as a matrix with observations in rows and features in columns. If there are n deliveries and d measurements per delivery, X has shape n by d. A coefficient vector with d entries combines the measurements into one prediction for each row. The matrix product Xw has n entries. Write these dimensions before implementing the operation: a shape mismatch is often a conceptual error, while a silently broadcast result can be worse because it looks valid.",
+          "A vector can represent an observation, a direction or a list of coefficients. The numbers alone do not tell you which role it plays. Attach feature names and units to coordinates when explaining a calculation. Adding vectors assumes their coordinates refer to compatible quantities. A dot product combines coordinate-wise products and sums them, which is why linear prediction and geometric projection share the same operation."
+        ]
+      },
+      {
+        "title": "Norms and projections describe what the model measures",
+        "paragraphs": [
+          "The Euclidean norm is vector length. Distance between two vectors is the norm of their difference. Cosine similarity divides a dot product by both lengths and compares direction, removing magnitude; it is undefined for a zero vector without a chosen convention. Whether magnitude should matter depends on the task. Two customers with proportional usage may look identical by cosine but very different by absolute activity.",
+          "A projection onto a unit direction retains the component parallel to it. The residual is perpendicular to that direction. This geometric picture explains PCA reconstruction and least-squares fitting: the fitted target vector lies in the column space of the design matrix, while its residual is orthogonal to that space at an ordinary unconstrained least-squares solution. Orthogonality is a statement about the chosen inner product, not a universal semantic independence."
+        ]
+      },
+      {
+        "title": "Not every matrix can be inverted reliably",
+        "paragraphs": [
+          "If one feature column is a copy or linear combination of others, the matrix lacks full column rank. Different coefficient vectors can then produce the same predictions. Near dependence can make coefficients very sensitive even when predictions appear stable. A computer may return numbers without alerting you that interpreting those coefficients separately is unreliable.",
+          "Avoid implementing least squares by explicitly forming an inverse as the default. QR or singular-value-based solvers are more numerically appropriate. Singular values expose directions that the data constrain weakly. Regularization can stabilize a solution, but it changes the objective and must be evaluated accordingly. Use small hand calculations to understand the algebra, then rely on well-tested numerical routines for real data."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Read one matrix multiplication as a batch of predictions",
+      "steps": [
+        {
+          "explanation": "Two observations have two features each. A coefficient vector specifies how much each feature contributes.",
+          "formula": "X=\\begin{bmatrix}1&2\\\\3&4\\end{bmatrix},\\quad w=\\begin{bmatrix}2\\\\-1\\end{bmatrix}"
+        },
+        {
+          "explanation": "Each row takes a dot product with the same coefficients: 1×2+2×(−1)=0 and 3×2+4×(−1)=2.",
+          "formula": "Xw=\\begin{bmatrix}0\\\\2\\end{bmatrix}"
+        },
+        {
+          "explanation": "For a unit direction u, the projection of x is its scalar coordinate xᵀu times the direction. Subtracting it leaves an orthogonal residual.",
+          "formula": "\\hat x=(x^Tu)u,\\quad u^T(x-\\hat x)=0\\quad\\text{when }u^Tu=1"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "A prediction pipeline returns a square matrix",
+      "scenario": "A developer subtracts predictions shaped (n,1) from targets shaped (n,) and obtains an (n,n) array through broadcasting.",
+      "decisions": [
+        "Write the intended shape of predictions, targets and residuals explicitly.",
+        "Normalize both to the same one-dimensional or column-vector convention before subtraction.",
+        "Assert that residuals contain exactly one value per observation.",
+        "Compare the vectorized result with a short row-wise calculation on three examples."
+      ],
+      "success": "A batch computation that matches the intended observation-wise calculation and rejects incompatible shapes."
+    },
+    "problems": [
+      {
+        "question": "X has shape (20,5) and w has shape (5,). What are the shapes of Xw and XᵀX?",
+        "hint": "Inner dimensions match; outer dimensions determine the result.",
+        "solution": [
+          "Xw has shape (20,), one prediction per observation.",
+          "XᵀX has shape (5,5), describing relationships among feature columns.",
+          "Its shape does not guarantee invertibility; independent columns are required for a nonsingular Gram matrix."
+        ]
+      },
+      {
+        "question": "Project x=(3,4) onto u=(1,0). Find the reconstruction error norm.",
+        "hint": "The projection retains only the horizontal coordinate.",
+        "solution": [
+          "The coordinate is xᵀu=3, so projection is (3,0).",
+          "Residual is (0,4), with norm 4 and squared norm 16.",
+          "The residual is perpendicular to u, as a correct orthogonal projection requires."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "cs229",
+        "focus": "Linear algebra review handout.",
+        "task": "Annotate matrix dimensions in the least-squares normal equations."
+      },
+      {
+        "resource": "numpy-docs",
+        "focus": "Axes, matrix products and shapes; then NumPy linear algebra documentation.",
+        "task": "Check a vectorized calculation against a tiny row-wise reference."
+      }
+    ]
+  },
+  {
+    "id": "calculus",
+    "objectives": [
+      "Interpret derivatives as local sensitivity rather than a memorized symbol.",
+      "Apply the chain rule to a model's loss.",
+      "Check an analytical gradient with finite differences."
+    ],
+    "prerequisites": [
+      "linear-algebra"
+    ],
+    "sections": [
+      {
+        "title": "A derivative answers a local what-if question",
+        "paragraphs": [
+          "If you slightly increase a regression slope, how does its loss change? The derivative measures that local sensitivity. A positive derivative means a small positive move increases the function; a negative derivative means it decreases it. The units are output units per input unit. A derivative of loss with respect to a parameter therefore connects a model change with an objective change, rather than describing a feature's causal influence on the target.",
+          "For several parameters, hold the others fixed and take a partial derivative with respect to each one. Collect those partials into the gradient. A directional derivative asks about a combined change along a chosen direction. The gradient gives a locally steepest Euclidean increase direction, but its numerical components depend on parameter scaling. This is one reason standardization can change optimization behavior."
+        ]
+      },
+      {
+        "title": "The chain rule follows the computation",
+        "paragraphs": [
+          "A model usually computes a prediction and then computes a loss from that prediction. To differentiate loss with respect to a coefficient, multiply the sensitivity of loss to prediction by the sensitivity of prediction to the coefficient. If a parameter influences several terms, add those contributions. Drawing the small computation in order is often more useful than trying to remember one large derivative formula.",
+          "For squared error, a prediction that is too large produces a positive loss derivative with respect to that prediction. If the corresponding feature is positive, increasing its coefficient makes the overprediction worse. The gradient sign therefore has an intuitive interpretation. If the feature is negative, the direction reverses. Check signs with a simple example before implementing a whole optimizer."
+        ]
+      },
+      {
+        "title": "Numerical checking is a diagnostic, not a replacement",
+        "paragraphs": [
+          "A central finite difference compares function values just above and below a parameter. It can catch missing factors, incorrect signs and shape errors in an analytical gradient. Use a moderate small step and float64 for the reference: too large a step creates approximation error, while too small a step loses precision through subtraction. Compare relative and absolute error, especially near a zero derivative.",
+          "A zero gradient can indicate a minimum, maximum or saddle point. Curvature provides more information; for a one-dimensional twice-differentiable function, a positive second derivative at a stationary point supports a local minimum. Not every function is differentiable everywhere. Absolute value and hinge loss have corners, where subgradients or specialized optimizers replace an ordinary derivative. State these conditions rather than applying smooth formulas indiscriminately."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Differentiate one squared-error prediction",
+      "steps": [
+        {
+          "explanation": "Take x=2 and target y=5. Let the intercept be zero so prediction is 2w. Use half squared error for cleaner derivatives.",
+          "formula": "\\hat y=2w,\\qquad J(w)=\\tfrac12(2w-5)^2"
+        },
+        {
+          "explanation": "The outer derivative is prediction minus target, and the inner derivative is two. Multiply them.",
+          "formula": "J'(w)=(2w-5)\\cdot2"
+        },
+        {
+          "explanation": "At w=1 the derivative is −6. A small increase in w should reduce the loss, which agrees with the fact that prediction 2 is too small.",
+          "formula": "J'(1)=-6"
+        },
+        {
+          "explanation": "A central finite difference estimates the same derivative without using the symbolic formula. It is useful as an implementation check.",
+          "formula": "J'(w)\\approx\\frac{J(w+h)-J(w-h)}{2h}"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "A custom optimizer moves in the wrong direction",
+      "scenario": "A learner's regression loss rises even at a very small learning rate.",
+      "decisions": [
+        "Check one parameter and one observation before inspecting a large dataset.",
+        "Compute the expected gradient sign from whether the prediction is too high or too low.",
+        "Compare the analytical result with a central finite difference at several nonzero points.",
+        "Verify that the update subtracts the gradient and that all derivatives use the same old parameter state."
+      ],
+      "success": "Analytical and numerical gradients agree within a justified tolerance, and a sufficiently small step reduces the controlled smooth objective."
+    },
+    "problems": [
+      {
+        "question": "Differentiate J(w)=½(3w−6)² and evaluate at w=1. Which direction locally lowers the loss?",
+        "hint": "Multiply the outer derivative by the inner coefficient 3.",
+        "solution": [
+          "J'(w)=3(3w−6). At one this is −9.",
+          "Increasing w slightly lowers the objective.",
+          "The sign describes a local direction; a sufficiently large move could still overshoot the minimum at w=2."
+        ]
+      },
+      {
+        "question": "Why is a zero first derivative not enough to establish a minimum?",
+        "hint": "Compare w², −w² and w³ at zero.",
+        "solution": [
+          "All three derivatives vanish at zero.",
+          "They represent a minimum, maximum and stationary inflection respectively.",
+          "Use curvature and the surrounding function behavior, with appropriate assumptions, before labeling a stationary point."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "cs229",
+        "focus": "Least-squares gradients and optimization review handouts.",
+        "task": "Check each chain-rule factor and its units on a two-feature example."
+      },
+      {
+        "resource": "google",
+        "focus": "Gradient descent and learning rate explanations.",
+        "task": "Predict the sign of an update from an underprediction before calculating it."
+      }
+    ]
+  },
+  {
+    "id": "probability",
+    "objectives": [
+      "Distinguish joint, conditional and marginal probabilities.",
+      "Apply Bayes' rule while respecting base rates.",
+      "Explain independence assumptions and expected decision costs."
+    ],
+    "prerequisites": [
+      "python"
+    ],
+    "sections": [
+      {
+        "title": "Define the population behind a probability",
+        "paragraphs": [
+          "A probability refers to a specified event under a specified distribution. 'The error rate is 10%' is incomplete unless you know which examples, time period and decision policy produced it. A model's probability is an estimate conditional on represented information and modeling assumptions. It does not mean the outcome is mechanically determined at that fraction for one individual.",
+          "Conditional probability restricts the reference population. P(late | rain) considers rainy trips, while P(rain | late) considers late trips. They have different denominators and need not be equal. A contingency table is often the clearest way to avoid swapping them. Marginal probabilities average over other variables; changing the mixture of subpopulations can change an overall rate even if within-group behavior remains stable."
+        ]
+      },
+      {
+        "title": "Base rates can dominate apparently strong evidence",
+        "paragraphs": [
+          "Suppose a rare event occurs in one percent of records. A detector finds 90% of events but also flags 5% of ordinary records. In 10,000 records, it flags about 90 true events and 495 ordinary ones. Most alerts are therefore ordinary despite the high sensitivity. Bayes' rule formalizes this accounting; it is not an optional correction to an otherwise sufficient accuracy number.",
+          "Independence means joint probability factors into marginal probabilities. Conditional independence means the factorization applies after conditioning on a variable. These are distinct claims. Features may be associated overall because both vary with the class, while a model approximates them as independent within each class. Conversely, dependence within a class can cause a naive Bayes model to count similar evidence repeatedly."
+        ]
+      },
+      {
+        "title": "Expectation connects uncertainty with action",
+        "paragraphs": [
+          "Expected value weights possible outcomes by their probabilities. A decision can minimize expected cost by considering both likely and costly mistakes. The most probable class is not necessarily the least costly action when false positives and false negatives have different consequences. A decision threshold derived from costs also assumes the probabilities are appropriate for the actual population and sufficiently calibrated.",
+          "A probability model can be wrong because of finite data, a missing feature, biased sampling or changed conditions. Report what information the estimate uses and test it on representative held-out records. Avoid attaching certainty to extra decimal places. Repeated evidence from the same entity may not be independent, and treating it as many independent observations can create unjustified confidence."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Derive the probability that an alert is a real event",
+      "steps": [
+        {
+          "explanation": "Let E mean event and A mean alert. Use event prevalence 0.01, sensitivity 0.9 and false-positive rate 0.05.",
+          "formula": "P(E)=0.01,\\quad P(A\\mid E)=0.9,\\quad P(A\\mid\\neg E)=0.05"
+        },
+        {
+          "explanation": "An alert comes from an event or a non-event, so add these disjoint routes.",
+          "formula": "P(A)=0.9(0.01)+0.05(0.99)=0.0585"
+        },
+        {
+          "explanation": "The event-and-alert probability is 0.009. Divide by all alerts to change the reference population to alerted records.",
+          "formula": "P(E\\mid A)=\\frac{0.009}{0.0585}\\approx0.1538"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "Decide how many fraud alerts a team can review",
+      "scenario": "A payment team receives alerts from a detector with known validation rates, but event prevalence changes during holiday traffic.",
+      "decisions": [
+        "Estimate prevalence for the relevant period rather than reusing an unrelated dataset's prior.",
+        "Translate rates into expected counts and review workload.",
+        "Check whether sensitivity and false-positive behavior also change with the traffic mix.",
+        "Choose an action using costs and capacity, and reassess estimates when labels arrive."
+      ],
+      "success": "A transparent forecast of workload and expected yield, with assumptions and uncertainty stated in counts as well as probabilities."
+    },
+    "problems": [
+      {
+        "question": "Among 200 rainy trips, 40 are late. There are 100 late trips in total. Calculate P(late|rain) and P(rain|late).",
+        "hint": "Use the denominator named after the conditioning bar.",
+        "solution": [
+          "P(late|rain)=40/200=0.2.",
+          "P(rain|late)=40/100=0.4.",
+          "The same joint count appears in both numerators, but the populations differ."
+        ]
+      },
+      {
+        "question": "An action loses 2 units with probability 0.8 and 20 units with probability 0.2. What is expected loss?",
+        "hint": "Multiply each loss by its probability and add.",
+        "solution": [
+          "Expected loss is 2×0.8+20×0.2=5.6.",
+          "It is not the most likely loss of 2.",
+          "Expected-loss minimization requires comparing this quantity with the alternatives and checking whether it represents the application's preferences."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "cs229",
+        "focus": "Probability review and generative learning handouts.",
+        "task": "Express Bayes' rule as counts in a 10,000-record table."
+      },
+      {
+        "resource": "islp",
+        "focus": "Classification probabilities and Bayes classifier discussion.",
+        "task": "Give a case where the most probable class is not the least costly action."
+      }
+    ]
+  },
+  {
+    "id": "statistics",
+    "objectives": [
+      "Separate population quantities, sample estimates and sampling uncertainty.",
+      "Explain variance, standard error and resampling units.",
+      "Interpret comparisons without treating correlation or significance as causation."
+    ],
+    "prerequisites": [
+      "probability",
+      "arrays"
+    ],
+    "sections": [
+      {
+        "title": "A dataset is one sample, not the population itself",
+        "paragraphs": [
+          "A sample mean summarizes observed records. A population mean describes the distribution from which the relevant records arise. Repeated samples would usually give different estimates, even if collection were unbiased. Sampling uncertainty concerns that variation. Bias in collection is a different problem: a very large sample of only enthusiastic product users can estimate the wrong population with great numerical precision.",
+          "The sample variance measures spread of observations, while a standard error measures uncertainty in an estimator. They are not interchangeable. Under independent, identically distributed observations with finite variance, the mean's standard error decreases roughly with the square root of sample size. Four times as many independent observations therefore halves this standard error, rather than reducing it by a factor of four."
+        ]
+      },
+      {
+        "title": "Dependence changes the effective evidence",
+        "paragraphs": [
+          "A thousand transactions from ten customers are not necessarily equivalent to a thousand independent customers. Shared behavior creates dependence. A bootstrap that resamples individual transactions may understate uncertainty for generalization to new customers. Resample or split at the customer level when that is the relevant unit. For time series, temporal dependence requires methods and validation designs that respect order rather than assuming every row is exchangeable.",
+          "Bootstrap resampling creates repeated samples with replacement from the observed data and recomputes a statistic. It can help inspect estimator variability, but it cannot create information about parts of the population absent from the sample. Small samples, extreme-tail statistics and dependent data require care. Report the resampling unit, procedure and statistic, rather than treating any percentile interval as automatically valid."
+        ]
+      },
+      {
+        "title": "Uncertainty statements must match their assumptions",
+        "paragraphs": [
+          "A frequentist 95% confidence procedure is designed to cover the fixed population parameter in 95% of repeated studies under its assumptions. It is not generally a statement that this one fixed interval assigns 95% probability to the parameter. A p-value describes compatibility of a statistic with a specified null model; it is not the probability the null hypothesis is true or the size of an effect.",
+          "In ML projects, prioritize effect size, uncertainty and relevance. A tiny difference can be statistically detectable in a huge sample yet operationally negligible. Repeatedly testing many features or selecting the best of many models changes the interpretation of the winning result. Correlation can support prediction but does not establish intervention effects; confounding, selection and reverse direction remain possible. Write claims no stronger than the study design supports."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Distinguish spread from uncertainty of a mean",
+      "steps": [
+        {
+          "explanation": "For observations [2,4,6], the mean is four. Deviations are −2, 0 and 2.",
+          "formula": "\\bar x=(2+4+6)/3=4"
+        },
+        {
+          "explanation": "The usual unbiased sample variance divides the squared-deviation sum by n−1 under independent sampling assumptions.",
+          "formula": "s^2=\\frac{4+0+4}{3-1}=4,\\qquad s=2"
+        },
+        {
+          "explanation": "The estimated standard error of the sample mean divides sample standard deviation by sqrt(n), assuming the observations support the independent-sampling calculation.",
+          "formula": "\\widehat{SE}(\\bar x)=\\frac{s}{\\sqrt n}=\\frac2{\\sqrt3}\\approx1.1547"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "Compare two models on repeated customer records",
+      "scenario": "Two classifiers differ by a small average error on thousands of records, but most records come from a small number of customers.",
+      "decisions": [
+        "Compare predictions on the same evaluation records and report the size of the error difference.",
+        "Choose a resampling unit consistent with the deployment claim, such as customers rather than individual transactions.",
+        "Inspect whether a few high-volume customers drive the apparent advantage.",
+        "Weigh latency and maintenance costs against the uncertain improvement instead of declaring victory from a tiny score difference."
+      ],
+      "success": "An evidence-based comparison with a defensible sampling unit and an operationally meaningful interpretation."
+    },
+    "problems": [
+      {
+        "question": "With independent observations, a mean's standard error is 4 at n=100. Approximately what is it at n=400 if population variability is unchanged?",
+        "hint": "Standard error scales as 1/sqrt(n).",
+        "solution": [
+          "The new standard error is approximately 4×sqrt(100/400)=2.",
+          "Quadrupling sample size halves this uncertainty measure.",
+          "The calculation does not hold automatically when added observations are dependent or sampled from a different population."
+        ]
+      },
+      {
+        "question": "Does a narrow confidence interval from a biased sample establish accurate knowledge of the target population?",
+        "hint": "Precision and representativeness are separate properties.",
+        "solution": [
+          "No. The interval can be narrow around a systematically wrong target.",
+          "Investigate sampling, missing populations and measurement bias.",
+          "More records from the same biased mechanism may increase precision without repairing validity."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "islp",
+        "focus": "Statistical learning, uncertainty and resampling chapters.",
+        "task": "Explain the difference between observation spread and uncertainty in an average."
+      },
+      {
+        "resource": "cs229",
+        "focus": "Probability review and learning-theory assumptions.",
+        "task": "List which independence assumptions your project dataset plausibly satisfies."
+      }
+    ]
+  },
+  {
+    "id": "information-theory",
+    "objectives": [
+      "Interpret surprisal, entropy and cross-entropy in consistent units.",
+      "Connect uncertainty measures to classification losses and tree splits.",
+      "Distinguish predictive uncertainty from knowledge of real-world truth."
+    ],
+    "prerequisites": [
+      "probability",
+      "calculus"
+    ],
+    "sections": [
+      {
+        "title": "Surprise depends on the probability assigned to an event",
+        "paragraphs": [
+          "An event assigned high probability carries little surprise when it happens; an event assigned tiny probability carries much more. Negative logarithm turns this intuition into a quantity that adds for independent events. The logarithm's base determines units: base two gives bits, while the natural logarithm gives nats. Changing the base rescales values, so state the convention when comparing numbers.",
+          "Entropy is expected surprisal under a distribution. A certain binary outcome has zero entropy, while a balanced binary outcome has one bit. This describes uncertainty in the specified distribution, not necessarily uncertainty about an individual real-world mechanism. A dataset's empirical class proportions estimate a distribution and themselves have sampling uncertainty. A pure leaf with very few observations does not establish that its future labels are certain."
+        ]
+      },
+      {
+        "title": "Cross-entropy evaluates the probabilities a model assigns",
+        "paragraphs": [
+          "Cross-entropy measures expected negative log probability under a predicted distribution when outcomes come from a reference distribution. It is small when the model places substantial probability on events that actually occur. Binary cross-entropy in logistic regression is a special case. A confidently wrong prediction receives a large penalty because its observed outcome was assigned very little probability.",
+          "KL divergence is the difference between cross-entropy and the reference entropy. It is nonnegative under its usual conditions but is not a symmetric distance. If the reference assigns positive probability to an event that the model assigns zero, the divergence is infinite. Numerical clipping can avoid log-zero errors in a computation, but it changes the extreme penalty and should not conceal invalid probabilities or an unstable implementation."
+        ]
+      },
+      {
+        "title": "Information gain is a reduction relative to a split",
+        "paragraphs": [
+          "A classification tree can compare parent entropy with the size-weighted average entropy of its children. A useful split makes class labels more predictable within the resulting groups. Weighting by child size is essential: isolating a tiny pure group should not count as much as purifying most of the data. Information gain measures a property of the observed split and objective, not a causal explanation of the feature.",
+          "An impurity calculation does not decide how deep the tree should grow. Repeated splitting can continue fitting sample noise and produce overly confident small leaves. Use validation and complexity controls. Likewise, optimizing log loss does not guarantee perfect calibration under dataset shift, misspecification or finite data. Evaluate the probabilities and decisions on the population the system is intended to serve."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Compute entropy and the penalty for misplaced confidence",
+      "steps": [
+        {
+          "explanation": "For a binary distribution with equal probabilities, both events carry one bit of surprise, so expected surprise is one bit.",
+          "formula": "H(1/2,1/2)=-\\tfrac12\\log_2\\tfrac12-\\tfrac12\\log_2\\tfrac12=1"
+        },
+        {
+          "explanation": "For an observed positive outcome, cross-entropy in nats is −log(p). A probability of 0.9 gives about 0.105, while 0.01 gives about 4.605.",
+          "formula": "\\ell(1,0.9)=-\\ln0.9\\approx0.1054,\\quad\\ell(1,0.01)\\approx4.6052"
+        },
+        {
+          "explanation": "Expected cross-entropy separates into irreducible reference entropy and disagreement between the reference and predicted distributions.",
+          "formula": "H(P,Q)=H(P)+D_{KL}(P\\|Q)"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "Two classifiers have the same accuracy but different confidence",
+      "scenario": "Two models make the same number of classification mistakes. One assigns extreme probabilities, including near-certainty to some wrong answers; the other is less confident.",
+      "decisions": [
+        "Compare log loss and calibration alongside accuracy, using the same held-out observations.",
+        "Inspect whether extreme errors are associated with rare groups, data quality or distribution change.",
+        "Do not select a model only because it appears more decisive.",
+        "Choose downstream thresholds based on validated probability behavior and application costs."
+      ],
+      "success": "A model comparison that distinguishes correct labels, useful probabilities and decision quality rather than collapsing them into accuracy alone."
+    },
+    "problems": [
+      {
+        "question": "What is the entropy in bits of a distribution that always returns class zero? How does this differ from a leaf containing one observed zero?",
+        "hint": "Use the limiting convention 0 log 0 = 0.",
+        "solution": [
+          "The known certain distribution has entropy zero.",
+          "A leaf with one observed label has empirical entropy zero but very limited evidence about future outcomes.",
+          "Distinguish the distribution from its finite-sample estimate before claiming certainty."
+        ]
+      },
+      {
+        "question": "A split sends half the examples to a pure leaf and half to a balanced binary leaf. If parent entropy is one bit, what is information gain?",
+        "hint": "Average child entropies using their sizes.",
+        "solution": [
+          "Weighted child entropy is 0.5×0+0.5×1=0.5 bits.",
+          "Information gain is 1−0.5=0.5 bits.",
+          "This is a training split score; validation is still needed to control overfitting."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "cs229",
+        "focus": "Logistic likelihood and generative probability calculations.",
+        "task": "Explain why logarithms turn a product likelihood into a sum of losses."
+      },
+      {
+        "resource": "sklearn",
+        "focus": "Log loss and decision-tree entropy criteria.",
+        "task": "Compare two equal-accuracy predictions with different probabilities assigned to their errors."
+      }
+    ]
+  }
+]

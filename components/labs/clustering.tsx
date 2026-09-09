@@ -1,5 +1,12 @@
 'use client';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { Play, Pause, RotateCcw, SkipForward } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
@@ -30,7 +37,13 @@ export function ClusteringLab() {
   const assignments = assignClusters(points, centers);
   const step = useCallback(() => {
     const next = kmeansStep(points, centers);
-    if (steps >= 49 || next.every((c,i)=>c.every((v,j)=>Math.abs(v-centers[i][j])<1e-8))) setPlaying(false);
+    if (
+      steps >= 49 ||
+      next.every((c, i) =>
+        c.every((v, j) => Math.abs(v - centers[i][j]) < 1e-8),
+      )
+    )
+      setPlaying(false);
     setConverged(
       next.every((c, i) =>
         c.every((v, j) => Math.abs(v - centers[i][j]) < 1e-8),

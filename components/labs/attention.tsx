@@ -7,7 +7,14 @@ import {
   NativeSelectOption,
 } from '@/components/ui/native-select';
 import { Switch } from '@/components/ui/switch';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
 export function AttentionLab() {
   const [query, setQuery] = useState(2),
     [temperature, setTemperature] = useState(1),
@@ -25,40 +32,41 @@ export function AttentionLab() {
           <p className="attention-caption">
             Query → key attention · each row sums to 1
           </p>
-          <Table
-            className="attention-matrix"
-            aria-label="Attention weights"
-          >
-            <TableHeader><TableRow className="matrix-row">
-              <TableHead>Q / K</TableHead>
-              {tokenNames.map((t) => (
-                <TableHead key={t}>
-                  {t}
-                </TableHead>
-              ))}
-            </TableRow></TableHeader><TableBody>
-            {rows.map((row, i) => (
-              <TableRow
-                className={'matrix-row ' + (i === query ? 'selected-row' : '')}
-                key={i}
-              >
-                <TableHead scope="row">{tokenNames[i]}</TableHead>
-                {row.map((v, j) => (
-                  <TableCell
-                    key={j}
-                    style={{
-                      background:
-                        causal && j > i
-                          ? '#162d49'
-                          : `rgba(100,160,255,${0.1 + v * 0.8})`,
-                    }}
-                  >
-                    {causal && j > i ? 'masked' : v.toFixed(3)}
-                  </TableCell>
+          <Table className="attention-matrix" aria-label="Attention weights">
+            <TableHeader>
+              <TableRow className="matrix-row">
+                <TableHead>Q / K</TableHead>
+                {tokenNames.map((t) => (
+                  <TableHead key={t}>{t}</TableHead>
                 ))}
               </TableRow>
-            ))}
-          </TableBody></Table>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row, i) => (
+                <TableRow
+                  className={
+                    'matrix-row ' + (i === query ? 'selected-row' : '')
+                  }
+                  key={i}
+                >
+                  <TableHead scope="row">{tokenNames[i]}</TableHead>
+                  {row.map((v, j) => (
+                    <TableCell
+                      key={j}
+                      style={{
+                        background:
+                          causal && j > i
+                            ? '#162d49'
+                            : `rgba(100,160,255,${0.1 + v * 0.8})`,
+                      }}
+                    >
+                      {causal && j > i ? 'masked' : v.toFixed(3)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
           <div className="attention-bars">
             {weights.map((v, i) => (
               <div key={i}>

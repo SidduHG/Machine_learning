@@ -1,5 +1,59 @@
-'use client';
 import Link from 'next/link';
-import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
-import { ArrowLeft } from 'lucide-react';
-export function LessonShell({title,current,items,children}:{title:string;current:string;items:{id:string;title:string}[];children:React.ReactNode}){return <SidebarProvider className="lesson-layout wrap"><Sidebar collapsible="none" className="lesson-sidebar"><SidebarHeader><Link href="/learn" className="text-link"><ArrowLeft size={16}/>All modules</Link><h2>{title}</h2></SidebarHeader><SidebarContent><SidebarMenu>{items.map((l,i)=><SidebarMenuItem key={l.id}><SidebarMenuButton isActive={l.id===current} render={<Link href={'/learn/'+l.id}/>} className="lesson-nav-item"><span className="mono">{String(i+1).padStart(2,'0')}</span><span>{l.title}</span></SidebarMenuButton></SidebarMenuItem>)}</SidebarMenu></SidebarContent><p className="sidebar-note">Make it yours.<br/>Read. Experiment. Explain it back.</p></Sidebar><article className="lesson-article">{children}</article></SidebarProvider>}
+import { lessons, modules } from '@/lib/curriculum';
+import { ChapterOutline } from './chapter-outline';
+export function LessonShell({
+  current,
+  children,
+}: {
+  current: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="textbook-layout">
+      <aside className="textbook-sidebar">
+        <Link className="textbook-course-title" href="/learn">
+          Machine Learning Tutorial
+        </Link>
+        <details className="textbook-mobile-nav">
+          <summary>Browse all chapters</summary>
+          <CourseNavigation current={current} />
+        </details>
+        <div className="textbook-desktop-nav">
+          <CourseNavigation current={current} />
+        </div>
+      </aside>
+      <article className="textbook-article">{children}</article>
+      <ChapterOutline chapterId={current} />
+    </div>
+  );
+}
+function CourseNavigation({ current }: { current: string }) {
+  return (
+    <nav aria-label="Course chapters">
+      {modules.map((m, index) => (
+        <div className="textbook-nav-group" key={m.id}>
+          <h2>
+            <span className="nav-module-index">
+              {String(index + 1).padStart(2, '0')}
+            </span>
+            {m.title}
+          </h2>
+          {lessons
+            .filter((l) => l.module === m.id)
+            .map((l) => (
+              <Link
+                key={l.id}
+                href={'/learn/' + l.id}
+                aria-current={current === l.id ? 'page' : undefined}
+              >
+                {l.title}
+              </Link>
+            ))}
+        </div>
+      ))}
+      <Link className="textbook-assessment-link" href="/assessment">
+        ML assessment · 30 questions
+      </Link>
+    </nav>
+  );
+}

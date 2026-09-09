@@ -1,0 +1,473 @@
+[
+  {
+    "id": "what-is-ml",
+    "objectives": [
+      "Translate a practical problem into a target, prediction time and evaluation question.",
+      "Distinguish supervised, unsupervised and rule-based approaches.",
+      "Define a baseline and a reproducible learning workflow before choosing an algorithm."
+    ],
+    "prerequisites": [],
+    "sections": [
+      {
+        "title": "Start with a decision that needs better information",
+        "paragraphs": [
+          "Machine learning fits patterns from examples so that a program can make predictions or reveal structure on observations it did not simply memorize. A useful project begins with a decision: estimate tomorrow's demand, identify tickets needing specialist help, or explore recurring customer behaviors. 'Use machine learning on our data' is not yet a problem definition. State who will use the result, when it is needed, what information is available then, and what a wrong result costs.",
+          "A prediction target is an operational definition. If 'late delivery' means more than ten minutes after a promised window, changing that promise changes the labels. If outcomes are observed only for approved applications, the labeled population differs from all applicants. Before comparing algorithms, inspect how labels were created and which records are absent. A sophisticated model cannot recover a clear target definition from an ambiguous business request."
+        ]
+      },
+      {
+        "title": "Training fits parameters; evaluation tests a claim",
+        "paragraphs": [
+          "In supervised learning, examples include inputs and desired outputs. Regression predicts a numeric quantity; classification predicts a category or its probability. Unsupervised learning works without the same target labels and searches for structure under a chosen representation. A cluster is not automatically a discovered truth, just as a high classification score is not automatically proof of usefulness.",
+          "Training adjusts model parameters to reduce an objective on available examples. Generalization concerns performance on new observations from the relevant population. Keep evaluation examples separate from choices that fit or select the model. The boundary includes feature engineering and threshold selection, not only the final fit call. Time and repeated entities often determine the right split. A random row split can be technically executable while answering the wrong question."
+        ]
+      },
+      {
+        "title": "Baselines and error analysis create a learning loop",
+        "paragraphs": [
+          "A baseline is a simple procedure that a more complex model must justify improving upon. Predicting the training mean is useful for numeric targets; a majority class or existing business rule can be useful for classification. Compare on the same held-out records and metric. If an elaborate model barely beats a cheap rule, maintenance, latency and explainability may favor the rule.",
+          "A practical loop is: define the task, inspect data provenance, create a split, establish a baseline, fit a candidate pipeline, inspect errors, improve a justified component and repeat within development data. Record every experiment. After locking the procedure, use a final assessment and plan monitoring. This course focuses on classical machine learning; neural networks and deep learning are deferred so that these methodological skills receive full attention."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Turn model quality into a measurable comparison",
+      "steps": [
+        {
+          "explanation": "For numeric predictions, one possible objective is mean absolute error, measured in the target's units.",
+          "formula": "\\mathrm{MAE}=\\frac1n\\sum_{i=1}^n|y_i-\\hat y_i|"
+        },
+        {
+          "explanation": "If a baseline has MAE 10 and a candidate has MAE 8 on the same held-out examples, relative error reduction is 20%. This is a specific metric comparison, not a universal accuracy claim.",
+          "formula": "\\frac{10-8}{10}=0.2"
+        },
+        {
+          "explanation": "Practical value also includes operating costs. A conceptual net-value calculation makes explicit what the metric alone omits.",
+          "formula": "\\mathrm{net value}=\\mathrm{benefit from decisions}-\\mathrm{operating cost}"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "Decide whether a demand model is worth building",
+      "scenario": "A small retailer wants to reduce stockouts. It has daily sales, promotions and occasional inventory shortages, but sales do not reveal demand when shelves were empty.",
+      "decisions": [
+        "Define next-day prediction time and distinguish observed sales from unconstrained demand.",
+        "Exclude features known only after the day ends and flag stockout-censored observations.",
+        "Compare a recent-average or seasonal baseline with a classical regression procedure using chronological evaluation.",
+        "Translate error patterns into inventory decisions and check whether improvement justifies operational complexity."
+      ],
+      "success": "A clear target and baseline comparison, with known data limitations. A polished model dashboard is not a substitute for a valid prediction problem."
+    },
+    "problems": [
+      {
+        "question": "You want to predict whether an order will be late when it is placed. Is final delivery duration a valid input?",
+        "hint": "Ask when the value becomes available.",
+        "solution": [
+          "No. It is known only after the event the model is supposed to anticipate.",
+          "Using it would leak outcome information and make evaluation unrealistically easy.",
+          "Restrict features to information available at order placement and test that timestamp boundary."
+        ]
+      },
+      {
+        "question": "A majority-class baseline scores 95% accuracy and a new classifier scores 95.2%. What else must you investigate?",
+        "hint": "Look beyond the headline difference.",
+        "solution": [
+          "Inspect class prevalence, confusion counts, error costs and uncertainty on the same held-out population.",
+          "Check leakage, split relevance and operational costs.",
+          "The small improvement may be useful, noise or operationally irrelevant; accuracy alone cannot decide."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "google",
+        "focus": "Introductory regression, classification and working-with-data modules.",
+        "task": "Write a one-paragraph prediction contract for a problem you understand."
+      },
+      {
+        "resource": "islp",
+        "focus": "Chapter 2: statistical learning and model assessment.",
+        "task": "Define a baseline and the unseen population it should be evaluated on."
+      }
+    ]
+  },
+  {
+    "id": "python",
+    "objectives": [
+      "Write small deterministic functions for data transformations and metrics.",
+      "Recognize mutation, missing values and invalid-input errors.",
+      "Use a reproducible environment and execute a notebook from a clean state."
+    ],
+    "prerequisites": [
+      "what-is-ml"
+    ],
+    "sections": [
+      {
+        "title": "Learn the subset of Python that makes reasoning visible",
+        "paragraphs": [
+          "Start with numbers, strings, lists, dictionaries, loops, conditions and functions. These are enough to express the small calculations in this course. A function should have a clear contract: what inputs it accepts, what it returns and what invalid cases it rejects. For an error metric, decide whether predictions and targets must have equal lengths and what should happen for an empty dataset. Silently accepting an invalid case can produce a persuasive but meaningless score.",
+          "Separate computation from display. A function that returns a numeric error is easier to test and reuse than one that only prints a sentence. Use descriptive names such as squared_errors or training_mean instead of names that hide the role of a value. Readable code matters because ML mistakes often arise from using the wrong dataset or transformation rather than from a difficult algorithm."
+        ]
+      },
+      {
+        "title": "Objects, mutation and notebook state can change your experiment",
+        "paragraphs": [
+          "Assigning one list to another variable does not create an independent copy. Both names can refer to the same mutable object. If a preprocessing function modifies it in place, later experiments may see changed data even though their code looks unchanged. Prefer explicit copies when mutation is intentional and keep raw inputs separate from derived features. Dictionaries and nested structures require the same attention to shared references.",
+          "A notebook can run cells out of order and preserve old variables. A successful cell is not evidence that the whole notebook is reproducible. Restart the kernel and run everything from top to bottom before sharing results. Keep imports, seeds, data loading and configuration visible. Save package versions and avoid relying on files that exist only on one personal machine."
+        ]
+      },
+      {
+        "title": "Fail early on wrong data, then make the common path simple",
+        "paragraphs": [
+          "Python's zip stops at the shortest input. If target and prediction lengths differ, a metric written with zip alone can silently ignore extra records. Validate lengths first. Floating-point arithmetic is approximate, so use tolerances for numerical comparisons rather than expecting every decimal operation to be exact. Check finite values when division, logarithms or optimization could produce invalid results.",
+          "The browser studio runs standard-library examples in a dedicated worker so you can change a parameter and inspect the result. It is for bounded educational calculations, not arbitrary package installation or large model training. Download project notebooks for a full local Python environment. Learn to explain each output before treating a library call as a complete solution."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Write the contract before computing an average error",
+      "steps": [
+        {
+          "explanation": "The mean of n values divides their sum by n, so n must be positive. For a paired error metric, both sequences must refer to the same number of examples.",
+          "formula": "n=|y|=|\\hat y|>0"
+        },
+        {
+          "explanation": "Absolute error removes the sign of each discrepancy. For targets [2,5] and predictions [3,3], magnitudes are one and two.",
+          "formula": "e=[|2-3|,|5-3|]=[1,2]"
+        },
+        {
+          "explanation": "Average those magnitudes only after validating the pairing.",
+          "formula": "\\mathrm{MAE}=(1+2)/2=1.5"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "A metric improves after a data-processing change",
+      "scenario": "A developer accidentally drops some predictions but still computes error with zip. The reported score improves because difficult examples are silently omitted.",
+      "decisions": [
+        "Assert matching lengths and preserve record identifiers through each transformation.",
+        "Check a tiny hand-calculated example, an empty input and mismatched input lengths.",
+        "Make the metric return a number and raise a clear exception for invalid pairings.",
+        "Rerun the entire experiment from a clean environment and compare the evaluated record IDs."
+      ],
+      "success": "The score measures every intended observation and invalid inputs fail explicitly rather than silently improving the result."
+    },
+    "problems": [
+      {
+        "question": "If a=[1,2] and b=a, what does b.append(3) do to a? How do you create an independent shallow list copy?",
+        "hint": "Assignment binds another name to the same object.",
+        "solution": [
+          "a also becomes [1,2,3].",
+          "Use b=a.copy() or list(a) for a shallow copy.",
+          "Nested mutable elements can still be shared, so choose deeper copying only when the structure requires it."
+        ]
+      },
+      {
+        "question": "Why should an MAE function reject targets of length 10 and predictions of length 9 rather than use zip?",
+        "hint": "Consider whether the tenth target disappears from the calculation.",
+        "solution": [
+          "zip would compute only nine pairs and silently omit an observation.",
+          "The resulting metric no longer represents the intended evaluation set.",
+          "Raise a descriptive error and repair the upstream prediction alignment."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "python-docs",
+        "focus": "Functions, data structures, exceptions and virtual environments.",
+        "task": "Implement a metric with explicit length checks and three small behavioral tests."
+      },
+      {
+        "resource": "islp-labs",
+        "focus": "The introductory Python lab.",
+        "task": "Restart the environment and reproduce a small calculation without hidden state."
+      }
+    ]
+  },
+  {
+    "id": "arrays",
+    "objectives": [
+      "Predict array shapes and axis reductions before running code.",
+      "Explain broadcasting, vectorization and numerical dtypes.",
+      "Compare a vectorized calculation with a simple reference implementation."
+    ],
+    "prerequisites": [
+      "python"
+    ],
+    "sections": [
+      {
+        "title": "Arrays make repeated calculations precise and efficient",
+        "paragraphs": [
+          "A numeric array stores values with a shape and dtype. Shape describes dimensions; dtype controls representation and arithmetic behavior. A dataset often uses rows for examples and columns for features, but this is a convention you must preserve consistently. A one-dimensional array of length d differs from a two-dimensional d-by-one column even when the printed values look similar.",
+          "Vectorization expresses operations over arrays rather than Python-level loops. It can improve speed and clarity when the operation matches the intended algebra. It can also allocate large intermediate arrays unexpectedly. Before optimizing, write a short loop for a tiny case and use it as a reference. Correctness of the pairing and axes matters more than reducing the number of lines."
+        ]
+      },
+      {
+        "title": "Broadcasting follows dimensions, not your intention",
+        "paragraphs": [
+          "Broadcasting compares dimensions from the right. Dimensions are compatible when equal or when one is one. This lets an n-by-d matrix subtract a length-d vector of feature means, applying the same means to each observation. It also lets an n-by-one prediction array subtract a length-n target vector and create an n-by-n result. Both are legal shape operations; only one may match the task.",
+          "An axis reduction removes or retains dimensions according to its options. Mean over axis zero of an n-by-d table produces d feature means. Mean over axis one produces n row means, combining features that may have incompatible units. Say in words what population the average represents before choosing an axis. Keep dimensions when doing so makes a subsequent broadcast explicit."
+        ]
+      },
+      {
+        "title": "Numerical representation is part of the calculation",
+        "paragraphs": [
+          "Integer arithmetic can overflow in a fixed-width dtype, and converting a noninteger result back to integers can discard information. Floating-point sums can differ slightly with order. Extremely different scales can cause loss of precision, while dividing by a zero standard deviation creates invalid values. Use a deliberate numeric dtype and check edge cases rather than treating arrays as exact mathematical objects.",
+          "Views can share underlying memory with another array, so modifying a slice may alter the original. Advanced indexing and some transformations create copies, with different memory costs. Read the library behavior when it matters and preserve a raw-data boundary. For large datasets, estimate intermediate shapes and memory before constructing pairwise-distance matrices, which can grow quadratically with the number of observations."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Standardize columns with the intended broadcast",
+      "steps": [
+        {
+          "explanation": "For X with n rows and d columns, calculate one mean per feature over the observation axis.",
+          "formula": "\\mu_j=\\frac1n\\sum_iX_{ij},\\qquad\\mu\\in\\mathbb R^d"
+        },
+        {
+          "explanation": "Subtract and scale each column using training statistics. A constant feature requires a declared handling policy rather than division by zero.",
+          "formula": "Z_{ij}=\\frac{X_{ij}-\\mu_j}{s_j}\\quad(s_j>0)"
+        },
+        {
+          "explanation": "For columns [1,3] and [10,14], means are [2,12]. Centered rows become [−1,−2] and [1,2].",
+          "formula": "X-\\mu=\\begin{bmatrix}-1&-2\\\\1&2\\end{bmatrix}"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "A preprocessing pipeline uses row means by accident",
+      "scenario": "A learner intends to center every feature but subtracts each row's average, mixing age and income within each record.",
+      "decisions": [
+        "State that feature means must be estimated across training observations.",
+        "Check the intermediate mean vector has one entry per feature.",
+        "Compare the result with a two-row hand calculation and verify centered training columns average to zero.",
+        "Reuse the same training statistics on evaluation data instead of recentering each evaluation batch."
+      ],
+      "success": "A transformation whose shapes and statistics match the intended feature-wise operation, with a documented zero-variance policy."
+    },
+    "problems": [
+      {
+        "question": "What shape results from subtracting an array of shape (4,) from one of shape (4,1)? Why can this be dangerous for residuals?",
+        "hint": "Align dimensions from the right.",
+        "solution": [
+          "The result has shape (4,4).",
+          "Broadcasting compares every column-vector element with the four-element row representation.",
+          "Residuals should normally be one value per example, so normalize both inputs to the same shape first."
+        ]
+      },
+      {
+        "question": "An n-by-n float64 distance matrix is built for 100,000 records. Approximately how much memory do the values alone require?",
+        "hint": "There are n squared entries and eight bytes per entry.",
+        "solution": [
+          "There are 10 billion entries, requiring 80 billion bytes, about 80 GB in decimal units.",
+          "Additional arrays and library overhead increase the actual requirement.",
+          "Use batching or an appropriate neighbor-search method rather than assuming vectorization makes the computation cheap."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "numpy-docs",
+        "focus": "Shape, axes, broadcasting, copies and views.",
+        "task": "Predict the shape of each expression in a preprocessing pipeline before executing it."
+      },
+      {
+        "resource": "islp-labs",
+        "focus": "Array operations in the introductory Python lab.",
+        "task": "Compare one vectorized metric with a checked loop implementation."
+      }
+    ]
+  },
+  {
+    "id": "dataframes",
+    "objectives": [
+      "Define row meaning, keys and schema before modeling.",
+      "Validate joins, missingness and target alignment.",
+      "Build feature tables that respect prediction time."
+    ],
+    "prerequisites": [
+      "python",
+      "arrays"
+    ],
+    "sections": [
+      {
+        "title": "A table needs a grain and a key",
+        "paragraphs": [
+          "The grain says what one row represents: one customer, one order, or one customer-day. Without it, a table can mix repeated observations with independent examples and confuse both features and evaluation. A key identifies a row at that grain. Customer ID alone is not a unique key for a customer-day table; the date is part of the identity. Check uniqueness instead of assuming a familiar column name guarantees it.",
+          "A schema records column names, types, allowed values and meaning. A numeric-looking identifier is often categorical rather than quantitative. Timestamps need time zones and an interpretation: event time, ingestion time or update time. These details determine whether a feature existed when the prediction was needed. Keep the target separate from candidate features and preserve row identifiers through all transformations."
+        ]
+      },
+      {
+        "title": "Joins can silently multiply observations",
+        "paragraphs": [
+          "Joining two tables on a repeated key can produce a many-to-many Cartesian expansion within each key. A customer with three transactions and two contact records can become six joined rows. If you expected one row per transaction, this changes weighting and may duplicate target information. Validate relationship cardinality, compare row counts and decide which table must be aggregated or deduplicated first.",
+          "Aggregation also changes the prediction question. A lifetime customer spend calculated today includes future purchases relative to an old training row. A feature for a historical prediction timestamp must aggregate only earlier events. A seemingly ordinary groupby sum can therefore leak the future. Use explicit cutoffs and test a small timeline where the correct eligible records are obvious."
+        ]
+      },
+      {
+        "title": "Missingness and indices deserve explicit treatment",
+        "paragraphs": [
+          "Missing can mean not collected, not applicable, delayed, corrupted or intentionally withheld. Treating every missing value as zero collapses these meanings. Inspect missingness by target, time and source, but do not use final test outcomes to design a favorable preprocessing rule. Learn imputers on training data and consider missing indicators when their interpretation and availability make sense.",
+          "Dataframe operations may align by index labels instead of row position. After filtering or sorting, combining a target series with a feature table by position can mispair observations, while combining by inconsistent indices can introduce unexpected missing values. Preserve keys, use explicit joins when appropriate and verify a few known rows end to end. A fitted model cannot detect that a target was attached to the wrong record."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Predict a join's row count",
+      "steps": [
+        {
+          "explanation": "For each join key k, let the left table contain a_k rows and the right contain b_k rows. An inner many-to-many join contributes their product.",
+          "formula": "N_{\\mathrm{joined}}=\\sum_k a_kb_k"
+        },
+        {
+          "explanation": "For one customer with three transactions and two contacts, the join creates six rows rather than three.",
+          "formula": "a_k=3,\\ b_k=2\\Rightarrow a_kb_k=6"
+        },
+        {
+          "explanation": "If the desired grain is one transaction, aggregate contacts to one eligible customer-level record first, then validate a many-to-one join.",
+          "formula": "b_k=1\\Rightarrow a_kb_k=a_k"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "Create a customer-day churn feature table",
+      "scenario": "A service predicts whether an active customer will cancel in the next 30 days using information available at midnight on each observation date.",
+      "decisions": [
+        "Define customer-date as the row key and ensure target windows do not accidentally cross an evaluation boundary.",
+        "Aggregate usage only before the observation timestamp and exclude cancellation-processing fields.",
+        "Join account attributes with an as-of-time rule so later edits are not inserted into historical rows.",
+        "Check row counts, missingness and several manually traced customers before fitting any model."
+      ],
+      "success": "A feature table with a documented grain, time cutoff and validated target alignment, suitable for a defensible temporal or grouped evaluation."
+    },
+    "problems": [
+      {
+        "question": "A join produces twice as many rows as expected. Why is immediately dropping duplicate rows a risky fix?",
+        "hint": "The duplication may reflect multiple valid records or incorrect grain.",
+        "solution": [
+          "Dropping rows can discard real information or preserve arbitrary combinations without solving the relationship problem.",
+          "Inspect key counts and the intended join cardinality.",
+          "Aggregate or select records using a documented business and time rule, then validate the resulting grain."
+        ]
+      },
+      {
+        "question": "A feature contains a customer's total spending over the entire dataset. Why can it leak information for a historical prediction?",
+        "hint": "Compare the feature's aggregation window with prediction time.",
+        "solution": [
+          "Purchases after the historical prediction timestamp contribute future information.",
+          "Compute spending using only eligible earlier events for each row.",
+          "Test the cutoff on a small timeline and keep late-arriving-data policies explicit."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "pandas-docs",
+        "focus": "Combining tables, derived columns, summaries and time-series tutorials.",
+        "task": "Write expected join cardinality and assert it on a small feature table."
+      },
+      {
+        "resource": "inria",
+        "focus": "Tabular data exploration and preprocessing.",
+        "task": "Create a schema checklist before fitting the first estimator."
+      }
+    ]
+  },
+  {
+    "id": "data-preparation",
+    "objectives": [
+      "Recognize target, temporal, group and preprocessing leakage.",
+      "Fit imputation, encoding and scaling only on permitted training data.",
+      "Validate unknown categories and schema behavior at inference time."
+    ],
+    "prerequisites": [
+      "dataframes",
+      "arrays",
+      "what-is-ml"
+    ],
+    "sections": [
+      {
+        "title": "Data preparation is part of the learned model",
+        "paragraphs": [
+          "Imputation learns replacement values, scaling learns location and spread, and categorical encoding can learn a vocabulary. Feature selection and target encoding can use labels directly. These steps therefore belong inside the train-validation boundary. Fitting them on all records before splitting gives evaluation data influence over the representation, even if the estimator never receives evaluation labels.",
+          "Start by choosing a split strategy that matches the future task, then fit a pipeline on the training portion. Apply the same fitted pipeline to validation and deployment records. Recomputing scaling separately for each test batch changes the meaning of the model's coefficients and lets prediction depend on other records in the batch. Persist preprocessing and estimator together as one versioned artifact."
+        ]
+      },
+      {
+        "title": "A feature must be available at prediction time",
+        "paragraphs": [
+          "Target leakage often appears as an apparently excellent feature: reimbursement amount when predicting approval, final shipment status when predicting delay, or a manual-review flag when predicting the outcome of that review. The feature can be correlated for an obvious reason that makes it unusable prospectively. Ask when and how each value is produced, not just whether it appears in the dataset.",
+          "Group leakage arises when near-duplicate or repeated entities cross the boundary for a task meant to generalize to new entities. Temporal leakage can come from random splits, overlapping windows or historical features recalculated with future information. A pipeline protects fitted transformations but cannot repair these design errors automatically. Data lineage and a clear prediction contract are essential."
+        ]
+      },
+      {
+        "title": "Prepare for inputs that differ from the training sample",
+        "paragraphs": [
+          "One-hot encoding creates indicator columns for categories seen during fitting. A new category requires a chosen behavior: reject it, map it to an unknown category, or use an encoder's documented ignore policy. Silently changing column order or dropping a column changes the feature meaning. Numeric conversion, finite values, units and missing fields also need validation before prediction.",
+          "Imputing a mean or median is a modeling choice, not recovery of the true missing value. Add a missingness indicator when absence itself may carry useful, available information, while checking whether that signal survives deployment. Use appropriate transformations for skewed features and keep outlier handling justified. Never remove difficult final-test examples because they make a score worse; define eligible populations and data-quality rules in advance."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "A training-only statistic is a different quantity",
+      "steps": [
+        {
+          "explanation": "For training values [1,3], the mean is two. A held-out value of 100 must not contribute to this fitted statistic.",
+          "formula": "\\mu_{\\mathrm{train}}=(1+3)/2=2"
+        },
+        {
+          "explanation": "Using all three values gives a very different mean. The evaluation observation has changed the representation before being scored.",
+          "formula": "\\mu_{\\mathrm{all}}=(1+3+100)/3\\approx34.6667"
+        },
+        {
+          "explanation": "At inference, apply the stored training transformation to a new value rather than recomputing it from the query batch.",
+          "formula": "z_{\\mathrm{new}}=\\frac{x_{\\mathrm{new}}-\\mu_{\\mathrm{train}}}{s_{\\mathrm{train}}}"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "A churn model loses its apparent advantage after deployment",
+      "scenario": "Offline validation was excellent. Investigation finds a cancellation reason, post-cancellation account state and lifetime usage totals among the inputs.",
+      "decisions": [
+        "Remove features generated after the intended prediction timestamp and reconstruct historical aggregates using only past events.",
+        "Create a later-period holdout and check repeated-customer overlap according to the intended deployment population.",
+        "Put imputation, category encoding and the estimator in one cross-validated pipeline.",
+        "Test missing fields, unknown categories, reordered columns and unit mismatches before publishing the model."
+      ],
+      "success": "A lower but credible evaluation score and a pipeline that receives the same kind of information offline and online. Realistic evidence is more valuable than a leaked headline result."
+    },
+    "problems": [
+      {
+        "question": "An encoder's category vocabulary is fitted on the entire dataset before cross-validation. It does not use labels. Is that sufficient to make the procedure clean?",
+        "hint": "Evaluation data can influence a representation without labels.",
+        "solution": [
+          "No. Held-out inputs influenced a learned preprocessing object.",
+          "Fit the vocabulary within each training fold and define behavior for unknown categories.",
+          "The practical magnitude of leakage may vary, but the reusable clean procedure keeps every learned transformation inside the boundary."
+        ]
+      },
+      {
+        "question": "When predicting next week's demand, can you randomly split overlapping seven-day windows?",
+        "hint": "Some windows share raw observations or future information.",
+        "solution": [
+          "A random split can put highly overlapping information on both sides and misrepresent future forecasting.",
+          "Use chronological splits and an appropriate gap based on feature and target windows.",
+          "Verify exactly which timestamps contribute to every feature and label before trusting the estimate."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "inria",
+        "focus": "Preprocessing, pipelines and cross-validation lessons.",
+        "task": "Mark every fit operation in a notebook and identify the records it is allowed to see."
+      },
+      {
+        "resource": "sklearn",
+        "focus": "Common pitfalls, ColumnTransformer and categorical encoders.",
+        "task": "Build one preprocessing pipeline and test its unknown-category behavior."
+      }
+    ]
+  }
+]

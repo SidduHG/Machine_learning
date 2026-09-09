@@ -1,5 +1,12 @@
 'use client';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { Play, Pause, RotateCcw, SkipForward, Sparkles } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
@@ -29,7 +36,8 @@ export function RegressionLab({ descent = false }: { descent?: boolean }) {
     const next = regressionStep(data, parameters, rate);
     setParameters(next);
     setPath((p) => [...p, next]);
-    if (mse(data, next.w, next.b) > 200 || path.length >= 119) setPlaying(false);
+    if (mse(data, next.w, next.b) > 200 || path.length >= 119)
+      setPlaying(false);
   }, [data, parameters, rate, diverged, path.length]);
   useEffect(() => {
     if (!playing) return;

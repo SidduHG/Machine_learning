@@ -1,0 +1,478 @@
+[
+  {
+    "id": "k-means",
+    "objectives": [
+      "Derive the assignment and mean-update steps from the clustering objective.",
+      "Explain why convergence does not establish a globally best or meaningful grouping.",
+      "Evaluate feature scaling, initialization and cluster usefulness."
+    ],
+    "prerequisites": [
+      "linear-algebra",
+      "statistics"
+    ],
+    "sections": [
+      {
+        "title": "Clustering discovers a partition under your chosen geometry",
+        "paragraphs": [
+          "K-means divides observations into k groups by placing centers and assigning each point to its nearest center under squared Euclidean distance. A cluster does not arrive with a real-world name. If the algorithm groups customers by spend, calling the groups 'loyal' or 'at risk' requires evidence beyond the geometry. The input features and their scales decide which differences the objective treats as important.",
+          "The arithmetic mean is the best center for squared distances within a fixed group. This is why ordinary k-means uses means rather than medians. Squaring also makes distant points influential, so outliers can pull centers away from dense regions. A center may lie in an implausible location when features mix incompatible categories; averaging encoded category numbers is not automatically meaningful. Choose a representation in which a mean and Euclidean distance have an interpretable role."
+        ]
+      },
+      {
+        "title": "Alternate between two easier problems",
+        "paragraphs": [
+          "When centers are fixed, assigning every point to the nearest one minimizes the objective over assignments. When assignments are fixed, replacing each center with its group's mean minimizes over centers. Alternating these steps cannot increase the usual objective when handled correctly. But each step optimizes only one part at a time: the final result can depend on initialization and can be a poor local optimum.",
+          "An empty cluster has no defined mean. Implementations need an explicit policy, such as keeping or reseeding its center. Several initializations and an informed initialization method can improve robustness, but they do not establish the true semantic grouping. Record the seed and compare stability. The lab retains an empty center rather than dividing by zero, and its displayed objective lets you inspect each update rather than assume an animation proves learning."
+        ]
+      },
+      {
+        "title": "Choose k with evidence beyond a decreasing objective",
+        "paragraphs": [
+          "The best achievable within-cluster squared error cannot increase when more centers are allowed. In the extreme, assigning every point its own center gives zero error. Therefore a lower inertia is not by itself evidence of a better clustering. An elbow plot is a heuristic; a smooth curve may have no defensible single elbow. Silhouette scores compare within-cluster cohesion with separation, but still reflect the chosen distance and can favor some shapes over others.",
+          "Check stability across seeds, reasonable preprocessing choices and data resamples. Inspect representative and boundary examples. If clusters support an action, evaluate that action rather than only the geometric score. For recurring customer segmentation, fit preprocessing and centers on a development period and inspect assignments on a later period. A group that changes dramatically with a small feature-scale change may not support a durable business interpretation."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Why the update is the arithmetic mean",
+      "steps": [
+        {
+          "explanation": "For one fixed group C, minimize the sum of squared distances to its center. The assignment indicators are held fixed during this part of the algorithm.",
+          "formula": "J_C(\\mu)=\\sum_{i\\in C}\\|x_i-\\mu\\|^2"
+        },
+        {
+          "explanation": "Differentiate with respect to the center vector and set the result to zero. This requires a nonempty group.",
+          "formula": "\\nabla_\\mu J_C=2\\sum_{i\\in C}(\\mu-x_i)=0\\Rightarrow\\mu=\\frac1{|C|}\\sum_{i\\in C}x_i"
+        },
+        {
+          "explanation": "For one-dimensional points [1,2,6], the mean is 3. Their squared-error sum at 3 is 4+1+9=14; at 2 it is 1+0+16=17.",
+          "formula": "J_C(3)=14<17=J_C(2)"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "Group service usage patterns",
+      "scenario": "A software team wants exploratory groups based on weekly activity and feature usage. It plans to interview representative users, not automatically deny access or set prices.",
+      "decisions": [
+        "Define the observation window consistently and separate customer age from actual activity intensity.",
+        "Transform highly skewed counts when appropriate and document scaling so one high-range feature does not dominate.",
+        "Compare several k values, seeds and representative examples. Keep group names tentative until interviews support them.",
+        "Measure whether the groups remain recognizable in a later period and whether they help choose useful interview questions."
+      ],
+      "success": "A stable, interpretable exploratory segmentation with documented geometry and uncertainty. Cluster membership is not an intrinsic personal trait."
+    },
+    "problems": [
+      {
+        "question": "Points 0, 2 and 10 are assigned to one center. Compare squared-error sums at center 4 and center 2. Which objective would instead favor a median?",
+        "hint": "The mean is 4; the median is 2.",
+        "solution": [
+          "Squared error at 4 is 16+4+36=56; at 2 it is 4+0+64=68.",
+          "The mean minimizes squared error, while a median minimizes the sum of absolute deviations in one dimension.",
+          "Changing the distance objective changes the appropriate center update."
+        ]
+      },
+      {
+        "question": "Inertia decreases when k changes from 3 to 10. Does this prove there are ten natural groups?",
+        "hint": "Consider k equal to the number of observations.",
+        "solution": [
+          "No. More centers increase flexibility and can reduce training inertia even without meaningful structure.",
+          "Inspect stability, separation, representative examples and usefulness for a declared purpose.",
+          "Report ambiguity if several values are defensible; do not invent a natural-group claim from the score."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "cs229",
+        "focus": "K-means clustering handout and its alternating updates.",
+        "task": "Prove separately that assignment and mean replacement cannot raise the objective."
+      },
+      {
+        "resource": "sklearn",
+        "focus": "K-means initialization, assumptions and clustering evaluation.",
+        "task": "Compare random seeds on elongated or unevenly sized groups and explain the limitations."
+      }
+    ]
+  },
+  {
+    "id": "density-clustering",
+    "objectives": [
+      "Explain DBSCAN core, border and noise points.",
+      "Reason about scale, density connectivity and parameter sensitivity.",
+      "Distinguish geometric noise labels from verified anomalies."
+    ],
+    "prerequisites": [
+      "knn",
+      "k-means"
+    ],
+    "sections": [
+      {
+        "title": "Look for connected dense regions instead of spherical groups",
+        "paragraphs": [
+          "K-means represents each group with a center. Density-based clustering asks whether observations form locally dense, connected regions. DBSCAN uses a neighborhood radius and a minimum neighbor count. A core point has enough nearby observations under these settings. Core neighborhoods can connect into a cluster, allowing curved shapes that one center would describe poorly.",
+          "A border point is close to a core point but does not itself meet the core-density requirement. A noise point is not assigned through this density-connectivity procedure. These terms describe the algorithm's geometry. Noise does not mean a record is wrong or fraudulent, and a dense group does not necessarily correspond to a useful category. A border point near two clusters can be assigned according to traversal details, while core connectivity is more structurally determined."
+        ]
+      },
+      {
+        "title": "Radius and minimum count encode a scale assumption",
+        "paragraphs": [
+          "A radius is meaningful only after selecting a distance and feature representation. Measuring one coordinate in meters and another in kilometers without thought changes neighborhood membership. If the radius is too small, many points become noise or tiny fragments. If it is too large, dense regions can join through bridges and form one cluster. A neighbor-distance plot can inform a choice, but it does not remove the need to validate the geometry.",
+          "One global radius may struggle when clusters have very different densities. A setting that keeps a sparse genuine group can merge dense ones. In high dimensions, distance itself becomes less discriminating and neighborhood searches become costly. Consider whether the represented features carry useful similarity information before searching a large parameter grid. More tuning cannot make an arbitrary metric semantically correct."
+        ]
+      },
+      {
+        "title": "Design an exploratory study with a stability report",
+        "paragraphs": [
+          "Run a small, documented range of settings and show how cluster count, noise proportion and assignments change. Inspect examples near cluster boundaries and along potential bridges. If known labels exist, use them as an external evaluation aid while remembering that the original task may not be to reproduce those labels. Internal scores measure properties of geometry, not automatically the usefulness of a downstream action.",
+          "DBSCAN is usually an exploratory clustering fit rather than a standard supervised predictor with a simple universal predict() step for new examples. Decide how a deployed system would treat new records before describing the clusters as a production classifier. You might periodically refit for analysis or define a separate assignment rule with its own evaluation. The library's available methods should determine implementation claims."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Trace density connectivity on a line",
+      "steps": [
+        {
+          "explanation": "A radius neighborhood includes points no farther than epsilon. In common DBSCAN conventions, the point itself counts toward min_samples.",
+          "formula": "N_\\varepsilon(x)=\\{z:d(x,z)\\le\\varepsilon\\}"
+        },
+        {
+          "explanation": "For points 0, 0.1, 0.2 and 2, choose epsilon=0.15 and min_samples=3. The middle point sees all three near-zero points, while each endpoint sees itself and the middle point.",
+          "formula": "|N_{0.15}(0.1)|=3,\\quad|N_{0.15}(0)|=|N_{0.15}(0.2)|=2"
+        },
+        {
+          "explanation": "The middle point is core; the two endpoints are border points linked to it. Point 2 has no core neighbor and is labeled noise under these settings.",
+          "formula": "C=\\{0,0.1,0.2\\},\\qquad\\mathcal N=\\{2\\}"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "Explore locations of recurring service incidents",
+      "scenario": "An operations team has coordinates of reported incidents and wants to identify spatial concentrations for investigation.",
+      "decisions": [
+        "Use a distance appropriate for the coordinate system; raw latitude-longitude Euclidean distances are not uniformly meaningful over a large region.",
+        "Account for exposure: dense reports may simply reflect where more customers live.",
+        "Compare radius and count settings and inspect bridges caused by roads or reporting patterns.",
+        "Treat noise points as separate observations to inspect, not as confirmed erroneous reports."
+      ],
+      "success": "A map of parameter-sensitive incident concentrations with denominators and a follow-up investigation plan. The clustering alone does not explain cause."
+    },
+    "problems": [
+      {
+        "question": "In the four-point example, what happens if min_samples becomes 2 while epsilon stays 0.15?",
+        "hint": "Recount each point's neighborhood including itself.",
+        "solution": [
+          "The three near-zero points each become core and remain one connected cluster.",
+          "Point 2 still has only itself, so it remains noise.",
+          "Reducing the density requirement changes point roles even when the final cluster membership happens to remain the same."
+        ]
+      },
+      {
+        "question": "Two genuine groups have very different densities. Why might one global radius fail?",
+        "hint": "Think about keeping the sparse group while separating the dense group.",
+        "solution": [
+          "A small radius can fragment the sparse group or mark it as noise.",
+          "A large radius can merge dense groups through intermediate points.",
+          "Report this limitation and consider alternative representations or density methods rather than asserting one setting is objectively correct."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "sklearn",
+        "focus": "DBSCAN and density-based clustering documentation.",
+        "task": "Draw core, border and noise points for two different parameter choices."
+      },
+      {
+        "resource": "islp",
+        "focus": "Unsupervised learning: distance, clustering and interpretation.",
+        "task": "Separate an internal clustering score from evidence that a grouping supports a real decision."
+      }
+    ]
+  },
+  {
+    "id": "pca",
+    "objectives": [
+      "Derive projection and reconstruction with centered data.",
+      "Explain eigenvectors, explained variance and the effect of scaling.",
+      "Distinguish unsupervised compression from supervised feature selection."
+    ],
+    "prerequisites": [
+      "linear-algebra",
+      "statistics"
+    ],
+    "sections": [
+      {
+        "title": "Choose directions rather than choosing existing columns",
+        "paragraphs": [
+          "PCA finds orthogonal directions of variation in a centered dataset. The first direction captures the largest possible projected variance among unit directions; subsequent directions capture the largest remaining variance while staying orthogonal. A component is generally a weighted combination of original features, not a selected original column. Its coordinate is a score for an observation along that direction.",
+          "Centering matters because PCA describes deviations around a mean. Without centering, a large offset can dominate the direction. Scaling is a separate choice. Covariance-based PCA preserves variation in original units, while standardizing gives features comparable variance before analyzing their correlations. Neither is universally right: a high-variance measurement can be scientifically important or merely recorded in large units. Explain the choice before interpreting components."
+        ]
+      },
+      {
+        "title": "Projection discards information in specific directions",
+        "paragraphs": [
+          "Project an observation onto a unit direction by taking the dot product of its centered vector with that direction. Reconstruct it by multiplying the score by the direction and adding the mean. With fewer components than features, some residual remains orthogonal to the retained subspace. For ordinary squared reconstruction error, retaining leading principal directions gives the best rank-constrained linear approximation under the usual setup.",
+          "Explained variance describes the original feature distribution, not the target's predictability. A low-variance direction can carry the class distinction while a high-variance direction represents nuisance variation. Therefore '95% explained variance' does not imply '95% prediction accuracy' or preservation of all useful information. If PCA is part of a supervised pipeline, choose the number of components by a clean validation procedure that includes refitting PCA within each training fold."
+        ]
+      },
+      {
+        "title": "Read component signs and plots carefully",
+        "paragraphs": [
+          "A principal direction and its negative describe the same axis. A software version or numerical solver can flip the sign without changing the represented subspace. Near-equal eigenvalues also make individual directions less stable even when their joint subspace is stable. Avoid attaching an essential meaning to the sign or exact orientation of a component without examining loadings and stability.",
+          "A two-dimensional PCA plot is a projection, not the full dataset. Overlapping points in the plot may separate in omitted directions, and apparent clusters can be artifacts of how much variation was discarded. Inspect explained-variance ratios, reconstruction errors and representative loadings. Outliers can strongly influence covariance and rotate components; investigate them instead of deleting them automatically to make a cleaner picture."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "From a unit direction to the eigenvector problem",
+      "steps": [
+        {
+          "explanation": "Let centered observation x have covariance matrix S. Its scalar coordinate on a unit direction u is xᵀu.",
+          "formula": "z=x^Tu,\\qquad\\operatorname{Var}(z)=u^TSu,\\quad u^Tu=1"
+        },
+        {
+          "explanation": "Maximize projected variance subject to a unit norm. Differentiating the Lagrangian yields an eigenvector equation; the largest eigenvalue gives the first component.",
+          "formula": "\\nabla_u[u^TSu-\\lambda(u^Tu-1)]=0\\Rightarrow Su=\\lambda u"
+        },
+        {
+          "explanation": "For x=(2,0), mean zero and u=(1,1)/sqrt(2), the score is sqrt(2), reconstruction is (1,1), and squared reconstruction error is 2.",
+          "formula": "\\hat x=(x^Tu)u=(1,1),\\quad\\|x-\\hat x\\|^2=2"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "Compress correlated sensor measurements",
+      "scenario": "A factory collects many correlated numeric readings and wants a compact representation for exploratory visualization and a downstream predictive model.",
+      "decisions": [
+        "Fit centering and any scaling on development data only and record original feature units.",
+        "Inspect component loadings and outlier influence before naming a direction as a physical factor.",
+        "Compare downstream validation with and without PCA; do not choose dimensionality only from explained variance.",
+        "Track reconstruction error separately from prediction error, because they answer different questions."
+      ],
+      "success": "A documented compression choice whose predictive effect is measured honestly, with clear warnings about omitted directions in visualizations."
+    },
+    "problems": [
+      {
+        "question": "Eigenvalues are 6, 3 and 1. What variance fraction do the first two components explain? Does this establish a good classifier?",
+        "hint": "Divide retained eigenvalue sum by the total.",
+        "solution": [
+          "The fraction is (6+3)/(6+3+1)=0.9.",
+          "This accounts for 90% of the feature variance under the preprocessing used.",
+          "It does not establish classification quality; labels may depend on the omitted direction, so evaluate the complete predictive pipeline."
+        ]
+      },
+      {
+        "question": "A PCA direction flips sign after a numerical change. What happens to scores and reconstructions?",
+        "hint": "The score and direction both acquire a minus sign.",
+        "solution": [
+          "Scores along that component flip sign.",
+          "Their product with the flipped direction stays unchanged, so reconstruction is identical.",
+          "An axis orientation sign is arbitrary; compare subspaces and reconstructions when checking equivalence."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "cs229",
+        "focus": "Principal component analysis handout.",
+        "task": "Derive projected variance with dimensions attached to every matrix."
+      },
+      {
+        "resource": "islp",
+        "focus": "Chapter 12: PCA, scaling and interpretation.",
+        "task": "Give an example in which the highest-variance direction is irrelevant to a target."
+      }
+    ]
+  },
+  {
+    "id": "anomaly-detection",
+    "objectives": [
+      "Distinguish unusual observations from verified harmful events.",
+      "Choose anomaly scores and thresholds that reflect review capacity.",
+      "Evaluate rare-event systems under label delay and changing distributions."
+    ],
+    "prerequisites": [
+      "density-clustering",
+      "evaluation"
+    ],
+    "sections": [
+      {
+        "title": "Unusual is relative to a reference population",
+        "paragraphs": [
+          "An anomaly detector identifies records that differ from some reference pattern. A large transaction can be unusual for one account and ordinary for another. Context such as season, customer history or operating mode can therefore matter more than an absolute value. An anomaly score is a measure defined by a model, not an objective label attached to the world.",
+          "Novelty detection commonly assumes training data represent normal behavior, then scores new observations. Outlier detection may instead analyze a contaminated dataset to identify unusual members within it. These assumptions affect fitting and evaluation. If anomalies are labeled reliably, a supervised rare-event classifier may be the more direct formulation. Do not choose an unsupervised method merely because 'anomaly detection' sounds appropriate for the application."
+        ]
+      },
+      {
+        "title": "Different scores detect different kinds of unusualness",
+        "paragraphs": [
+          "A univariate z-score measures distance from a mean in standard-deviation units and can miss unusual combinations of otherwise ordinary values. Distance or density methods detect sparse neighborhoods but depend strongly on scale and dimension. Isolation-based approaches exploit how easily random partitions isolate observations. Reconstruction approaches detect examples that a learned representation reproduces poorly. None of these scores is automatically a calibrated probability of fraud or equipment failure.",
+          "Training contamination can distort the reference distribution. A simple mean and standard deviation are sensitive to extreme values, while robust alternatives have different assumptions and tradeoffs. Inspect data quality, missingness and known operational changes before interpreting every high score as an event. The direction of a library's score also matters: some APIs make larger values more abnormal, others make smaller values more abnormal. Verify the convention on controlled examples."
+        ]
+      },
+      {
+        "title": "Thresholds turn a ranking into a workload",
+        "paragraphs": [
+          "A review queue needs an operating rule. You might inspect the top 50 scores per day, apply a validated threshold or use separate thresholds across well-justified contexts. A contamination setting often imposes an expected fraction; it does not discover the true anomaly prevalence. If normal data shift, a fixed threshold can overwhelm reviewers. Measure queue size, confirmed-event yield and missed-event evidence over time.",
+          "Evaluation is difficult when only reviewed alerts receive labels. A high apparent precision among selected alerts says little about undetected events. Use careful sampling of non-alerted records when feasible, account for delayed labels and avoid evaluating on a set selected by the detector itself without acknowledging that selection. Report counts and uncertainty because rare positives can make headline rates unstable."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Standardize a deviation and inspect its limitations",
+      "steps": [
+        {
+          "explanation": "A z-score expresses a scalar deviation in units of the reference standard deviation. The reference parameters must come from an appropriate historical or training set.",
+          "formula": "z=\\frac{x-\\mu}{\\sigma}"
+        },
+        {
+          "explanation": "If mean transaction size is 100 and standard deviation is 20, a value of 160 has z=3. This is a standardized distance, not automatically a tail probability.",
+          "formula": "z=(160-100)/20=3"
+        },
+        {
+          "explanation": "A threshold produces a decision indicator. Its alert rate depends on the actual distribution, which may be skewed, dependent or changing.",
+          "formula": "a(x)=\\mathbf1[|z(x)|>\\tau]"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "Flag sensor behavior for maintenance review",
+      "scenario": "An industrial team can inspect 20 machines a day. Failures are rare and confirmed labels arrive after maintenance visits.",
+      "decisions": [
+        "Define reference operating modes so normal startup behavior is not compared blindly with steady-state operation.",
+        "Compare a simple rule, standardized scores and one multivariate detector on a time-based development period.",
+        "Select a queue policy using review capacity and measure the number of confirmed actionable cases after labels mature.",
+        "Sample some non-alerted cases when feasible to investigate misses and avoid assessing only the detector-selected population."
+      ],
+      "success": "A useful, monitored review process with a measured workload and explicit blind spots. High anomaly score means investigate, not automatically shut down a machine."
+    },
+    "problems": [
+      {
+        "question": "A detector labels the top 1% of records as anomalous. What has it established about the true anomaly prevalence?",
+        "hint": "The fraction was imposed by the operating rule.",
+        "solution": [
+          "It has established only that the rule selects approximately 1% under the scoring distribution and tie policy.",
+          "It has not established that 1% are genuinely harmful or incorrect.",
+          "Use independent labels and a sampling plan to estimate usefulness and missed events."
+        ]
+      },
+      {
+        "question": "Why can a point with ordinary values in each of two columns still be unusual jointly?",
+        "hint": "Imagine a strong relationship between the columns.",
+        "solution": [
+          "If temperature and pressure usually move together, a high temperature with unexpectedly low pressure may violate their joint pattern.",
+          "Each coordinate can be within its ordinary marginal range while the combination is rare.",
+          "A univariate threshold can miss such dependence; compare a suitable multivariate model and inspect its assumptions."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "sklearn",
+        "focus": "Novelty and outlier detection: assumptions and estimator comparisons.",
+        "task": "Write what training contamination means for each candidate method."
+      },
+      {
+        "resource": "inria",
+        "focus": "Evaluation and data-distribution reasoning.",
+        "task": "Design a label-sampling scheme that includes some non-alerted examples."
+      }
+    ]
+  },
+  {
+    "id": "model-selection",
+    "objectives": [
+      "Separate parameter fitting, hyperparameter selection and final assessment.",
+      "Build pipelines and split strategies that match the deployment question.",
+      "Compare search procedures fairly and diagnose unstable improvements."
+    ],
+    "prerequisites": [
+      "evaluation",
+      "regularization",
+      "ensembles"
+    ],
+    "sections": [
+      {
+        "title": "The object being evaluated is the whole procedure",
+        "paragraphs": [
+          "A model is not just an estimator class. It includes feature choices, preprocessing, hyperparameter search, stopping rules and any threshold or calibration step. Each can learn from data. A scaler estimates means, a feature selector uses labels, and a search selects the candidate with favorable validation results. Treat all of them as part of the procedure when deciding which data they may access.",
+          "A final holdout should represent the intended future population. Within the remaining development data, cross-validation supports selection. For each fold, fit every learned transformation only on that fold's training portion and apply it unchanged to its validation portion. A pipeline makes this boundary easier to preserve. It does not automatically fix a target leak built into a feature or an inappropriate splitter; those require reasoning about data provenance."
+        ]
+      },
+      {
+        "title": "Select with a finite budget and a stable comparison",
+        "paragraphs": [
+          "Grid search examines declared combinations, while randomized search samples a search space. Parameter ranges should reflect the model's behavior and scale; logarithmic ranges often suit positive regularization strengths. Start with a small meaningful search after a baseline rather than distributing a large budget across arbitrary settings. Keep folds fixed across candidates so score differences are less confounded by different evaluation examples.",
+          "Record multiple metrics when they help explain behavior, but declare which one determines selection. Repeatedly changing the winner criterion after viewing results is another form of selection. A tiny average-score improvement may not justify slower predictions, fragile preprocessing or greater maintenance burden. Inspect validation curves and near-tied settings to look for a stable region, then explain the tradeoff instead of selling a single maximum as a precise ranking."
+        ]
+      },
+      {
+        "title": "Nested validation estimates a selection process",
+        "paragraphs": [
+          "If you want to estimate the performance of a tuning procedure using limited data, nested cross-validation separates outer evaluation folds from inner tuning folds. For each outer split, run the entire selection process on the outer training data, then score its selected model on the outer validation data. The evaluated object is the procedure that selects and fits a model; different outer folds may select different parameters.",
+          "Chronological prediction requires chronological validation. Grouped observations require separation at the relevant group level. Random shuffling cannot be repaired afterward by a more sophisticated metric. Keep a gap when overlapping windows or delayed features could cross a temporal boundary. After selecting a procedure, train on the permitted development data, preserve the configuration and perform the declared final assessment. If the data are insufficient to support a strong conclusion, report that limitation."
+        ]
+      }
+    ],
+    "derivation": {
+      "title": "Track the data boundaries in a nested study",
+      "steps": [
+        {
+          "explanation": "For each outer fold k, reserve its validation set V_k. All hyperparameter choices are made using only the remaining training set T_k.",
+          "formula": "T_k\\cap V_k=\\varnothing,\\qquad\\hat\\lambda_k=\\operatorname*{argmin}_{\\lambda}\\widehat R_{\\mathrm{inner},T_k}(\\lambda)"
+        },
+        {
+          "explanation": "Refit the selected procedure on T_k, then compute its loss on V_k. The outer labels must not affect the selection that produced this predictor.",
+          "formula": "\\hat f_k=\\mathrm{Fit}(T_k,\\hat\\lambda_k),\\qquad\\hat R_k=\\frac1{|V_k|}\\sum_{i\\in V_k}\\ell(y_i,\\hat f_k(x_i))"
+        },
+        {
+          "explanation": "Combine outer-fold losses with appropriate weighting. Their variability describes instability, but overlapping training sets complicate simplistic independence-based confidence intervals.",
+          "formula": "\\hat R=\\frac{\\sum_k|V_k|\\hat R_k}{\\sum_k|V_k|}"
+        }
+      ]
+    },
+    "caseStudy": {
+      "title": "Choose a model for new customers",
+      "scenario": "A company has several records per customer and wants predictions for customers never seen during training. A random row split produced excellent results.",
+      "decisions": [
+        "Use customer groups for both final assessment and development folds, because repeated records can reveal individual-specific patterns.",
+        "Place imputation, encoding, feature selection and the estimator in the cross-validated procedure.",
+        "Compare a bounded set of linear and tree candidates on the same group folds and primary metric.",
+        "Record fit time, prediction latency, selected parameters and per-group errors alongside the aggregate score."
+      ],
+      "success": "A model-selection report that measures unseen-customer performance rather than familiar-customer interpolation, with all experimental choices reproducible."
+    },
+    "problems": [
+      {
+        "question": "A feature selector uses all labels before cross-validation. The estimator itself is fitted only within folds. Is the reported validation score trustworthy?",
+        "hint": "Selection of the representation can learn labels too.",
+        "solution": [
+          "No. Validation labels influenced which features were retained.",
+          "Fit the selector inside each fold's pipeline, before the estimator.",
+          "Compare the revised result with a baseline; do not assume leakage was harmless because selection happened outside fit()."
+        ]
+      },
+      {
+        "question": "Three candidates have validation MAE 4.21, 4.20 and 4.22 with substantial fold variation. What should you report?",
+        "hint": "Avoid treating hundredths as a definitive ranking without evidence.",
+        "solution": [
+          "Report the scores, fold behavior, shared split design and operational tradeoffs.",
+          "Prefer a defensible stable procedure using the predeclared criterion rather than claiming a meaningful breakthrough from 0.01 alone.",
+          "Lock the choice before the final holdout assessment and document search budget and uncertainty."
+        ]
+      }
+    ],
+    "reading": [
+      {
+        "resource": "inria",
+        "focus": "Hyperparameter tuning and nested cross-validation material.",
+        "task": "Draw the fit boundaries for preprocessing, inner search and outer assessment."
+      },
+      {
+        "resource": "sklearn",
+        "focus": "Cross-validation, common pitfalls, pipelines and parameter search.",
+        "task": "Select an appropriate splitter for repeated entities and for forecast windows with delayed outcomes."
+      }
+    ]
+  }
+]

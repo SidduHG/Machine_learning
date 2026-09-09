@@ -35,11 +35,7 @@
     "solution": "The allowed first key receives weight 1, the masked key weight 0, and the output becomes 10.",
     "quiz": {
       "question": "Softmax attention weights for one query sum to…",
-      "options": [
-        "The sequence length",
-        "One",
-        "Zero"
-      ],
+      "options": ["The sequence length", "One", "Zero"],
       "answer": 1,
       "explanation": "They form a normalized distribution over the allowed keys, assuming at least one key is allowed."
     },
@@ -85,10 +81,7 @@
     "solution": "The model could directly read information about the answer that is unavailable during autoregressive generation. The training task would no longer match deployment.",
     "quiz": {
       "question": "A tokenizer token is always a complete word.",
-      "options": [
-        "True",
-        "False"
-      ],
+      "options": ["True", "False"],
       "answer": 1,
       "explanation": "Tokens may be words, subwords, punctuation, bytes, or other units depending on the tokenizer."
     },
@@ -122,7 +115,7 @@
       "steps": [
         "Cosine(query,A)=1: their directions match despite different lengths.",
         "Cosine(query,B)=1/√2≈0.707.",
-        "If you instead used raw dot products, both score 2? No: A scores 2 and B scores 1. Similarity choice changes what vector magnitude contributes."
+        "With raw dot products, A scores 2 and B scores 1. Similarity choice changes what vector magnitude contributes."
       ]
     },
     "pitfalls": [

@@ -23,4 +23,5 @@ jobs:
       - run: python tests/verify_examples.py
       - run: python -m pip install -r requirements-dev.txt
       - run: python tests/verify_projects.py
+      - run: python tests/verify_practical.py
       - run: npm run build

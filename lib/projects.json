@@ -54,57 +54,57 @@
     "code": "from sklearn.datasets import load_wine\nfrom sklearn.model_selection import train_test_split\nfrom sklearn.pipeline import make_pipeline\nfrom sklearn.preprocessing import StandardScaler\nfrom sklearn.linear_model import LogisticRegression\nfrom sklearn.dummy import DummyClassifier\nfrom sklearn.metrics import accuracy_score, f1_score, confusion_matrix\n\ndata = load_wine()\nX_train, X_test, y_train, y_test = train_test_split(data.data, data.target, test_size=.2, random_state=42, stratify=data.target)\nmodels = {'Baseline':DummyClassifier(strategy='most_frequent'), 'Logistic':make_pipeline(StandardScaler(),LogisticRegression(max_iter=1000))}\nprint('Classes:', list(data.target_names))\nfor name,model in models.items():\n    model.fit(X_train,y_train)\n    predictions=model.predict(X_test)\n    print(name, 'Accuracy:',round(accuracy_score(y_test,predictions),3),'Macro F1:',round(f1_score(y_test,predictions,average='macro'),3))\n    print(confusion_matrix(y_test,predictions))\n"
   },
   {
-    "id": "digits-network",
-    "title": "Recognize handwritten digits",
-    "category": "NEURAL NETWORKS",
+    "id": "digits-forest",
+    "title": "Compare classical image classifiers",
+    "category": "MODEL COMPARISON",
     "level": "Intermediate",
     "hours": "4–6 hours",
-    "summary": "Train a small dense neural network on 8×8 images and compare it with a linear baseline.",
-    "dataset": "scikit-learn digits benchmark · 1,797 images with 64 pixel features",
+    "summary": "Compare a scaled linear baseline with a random forest on fixed pixel features, then inspect class-specific errors.",
+    "dataset": "scikit-learn digits benchmark · 1,797 observations, 64 pixel measurements",
     "source": "https://scikit-learn.org/stable/datasets/toy_dataset.html#optical-recognition-of-handwritten-digits-dataset",
-    "brief": "Build a small image classifier that predicts digits 0–9. Begin with logistic regression, then compare a multilayer perceptron. The network is a compact CPU-friendly scikit-learn model; extending it to a PyTorch CNN is a separate challenge.",
+    "brief": "Classify handwritten digits using fixed pixel measurements and classical ML. Reserve a final holdout, select a tree ensemble using development folds, compare a linear baseline on the identical holdout, and explain failure cases. This project uses no neural networks.",
     "steps": [
-      "Load the 8×8 images, inspect pixel range, and understand the flattened 64-feature representation.",
-      "Make a stratified train/test split before selecting architecture.",
-      "Fit scaled logistic regression and a one-hidden-layer MLP with early stopping using an internal training-validation split.",
-      "Report test accuracy and a confusion matrix. Inspect wrong predictions by reshaping the feature vectors back into images.",
-      "Document training duration, parameter choices and the limits of performance on this small benchmark."
+      "Inspect feature ranges, target counts and the fixed 8×8 representation.",
+      "Reserve a stratified 20% final holdout before comparing procedures.",
+      "Tune minimum leaf size for a random forest using stratified training folds; fit a scaled logistic baseline separately.",
+      "Compare held-out accuracy, macro F1 and confusion counts on identical observations.",
+      "Inspect misclassified examples and report the limits of random-split performance on this historical benchmark."
     ],
     "rubric": [
-      "The final test remains unused by early stopping.",
-      "A linear baseline and MLP use identical test records.",
-      "The report distinguishes the flat dense network from a convolutional architecture.",
-      "Misclassifications are inspected, not just counted.",
-      "The notebook runs on a CPU with fixed random seeds."
+      "The final holdout never guides tree tuning.",
+      "Both models use the same evaluation records.",
+      "The report includes a linear baseline and macro F1, not only accuracy.",
+      "At least three errors are examined with a proposed explanation.",
+      "The environment and random seeds are documented."
     ],
-    "extension": "Implement an equivalent PyTorch training loop, then try a small CNN. Compare parameter count, runtime, and held-out performance.",
-    "code": "from sklearn.datasets import load_digits\nfrom sklearn.model_selection import train_test_split\nfrom sklearn.pipeline import make_pipeline\nfrom sklearn.preprocessing import StandardScaler\nfrom sklearn.linear_model import LogisticRegression\nfrom sklearn.neural_network import MLPClassifier\nfrom sklearn.metrics import accuracy_score, confusion_matrix\n\ndigits=load_digits()\nX_train,X_test,y_train,y_test=train_test_split(digits.data,digits.target,test_size=.2,stratify=digits.target,random_state=42)\nmodels={'Linear':make_pipeline(StandardScaler(),LogisticRegression(max_iter=1000)), 'MLP':make_pipeline(StandardScaler(),MLPClassifier(hidden_layer_sizes=(48,),early_stopping=True,max_iter=120,random_state=42))}\nfor name,model in models.items():\n    model.fit(X_train,y_train)\n    predictions=model.predict(X_test)\n    print(name,'Accuracy:',round(accuracy_score(y_test,predictions),4))\n    print('First mistakes:',[(int(a),int(b)) for a,b in zip(y_test,predictions) if a!=b][:10])\n    print(confusion_matrix(y_test,predictions))\n"
+    "extension": "Compare a scaled k-nearest-neighbor pipeline using the same development folds. Measure prediction latency and investigate whether preprocessing changes the result.",
+    "code": "from sklearn.datasets import load_digits\nfrom sklearn.model_selection import train_test_split, StratifiedKFold, GridSearchCV\nfrom sklearn.pipeline import make_pipeline\nfrom sklearn.preprocessing import StandardScaler\nfrom sklearn.linear_model import LogisticRegression\nfrom sklearn.ensemble import RandomForestClassifier\nfrom sklearn.metrics import accuracy_score, f1_score, confusion_matrix\n\ndata = load_digits()\nX_train, X_test, y_train, y_test = train_test_split(data.data, data.target, test_size=.2, stratify=data.target, random_state=42)\nfolds = StratifiedKFold(3, shuffle=True, random_state=42)\nsearch = GridSearchCV(RandomForestClassifier(n_estimators=120, random_state=42, n_jobs=1), {'min_samples_leaf': [1, 3, 5]}, cv=folds, scoring='f1_macro', n_jobs=1)\nsearch.fit(X_train, y_train)\nlinear = make_pipeline(StandardScaler(), LogisticRegression(max_iter=2000))\nlinear.fit(X_train, y_train)\nprint('Train/test:', X_train.shape, X_test.shape)\nprint('Selected forest:', search.best_params_)\nfor name, model in [('Linear', linear), ('Forest', search.best_estimator_)]:\n    predicted = model.predict(X_test)\n    print(name, 'accuracy:', round(accuracy_score(y_test, predicted), 4), 'macro F1:', round(f1_score(y_test, predicted, average='macro'), 4))\n    print(confusion_matrix(y_test, predicted))\n    print('First errors (actual, predicted):', [(int(a), int(b)) for a,b in zip(y_test,predicted) if a != b][:5])\n"
   },
   {
-    "id": "retrieval-system",
-    "title": "Build an evidence-first study assistant",
-    "category": "AI ENGINEERING",
+    "id": "clustering-audit",
+    "title": "Audit an unsupervised clustering study",
+    "category": "UNSUPERVISED ML",
     "level": "Intermediate",
     "hours": "4–6 hours",
-    "summary": "Create and evaluate a retrieval system before connecting a language model.",
-    "dataset": "A small original course-note collection included in the notebook",
-    "source": "https://arxiv.org/abs/2005.11401",
-    "brief": "Build the retrieval layer for a question-answering system. Begin with a transparent lexical baseline, preserve source IDs, and refuse to invent evidence for unrelated questions. The runnable notebook performs retrieval; adding a generative model is an optional extension that requires your own provider credentials.",
+    "summary": "Choose a feature-only clustering procedure, evaluate stability and compare external labels only after the procedure is fixed.",
+    "dataset": "scikit-learn wine benchmark · 178 observations, 13 numeric features",
+    "source": "https://scikit-learn.org/stable/datasets/toy_dataset.html#wine-dataset",
+    "brief": "Explore structure in chemical measurements without training on cultivar labels. Select k using a declared training-only silhouette comparison, then inspect held-out geometry and external-label agreement. Cluster IDs have no inherent semantic names.",
     "steps": [
-      "Write a small permitted collection with stable source IDs and topic-specific passages.",
-      "Tokenize consistently and score term overlap as a baseline.",
-      "Return ranked evidence and abstain when no content terms match.",
-      "Create a held-out set of questions with expected sources and report top-1 source accuracy.",
-      "Document failures from synonyms and vocabulary mismatch. Compare a TF-IDF or embedding retriever before adding generation."
+      "Hold out 25% of observations. Keep labels out of preprocessing and k selection.",
+      "Fit StandardScaler on training features only.",
+      "Compare k=2 through 5 using training silhouette, with multiple center initializations.",
+      "Use the selected centers to assign held-out observations and report held-out silhouette when defined.",
+      "Report adjusted Rand agreement with held-out labels as an external audit; explain why it does not validate every possible use of the clusters."
     ],
     "rubric": [
-      "Every answer-like result includes its source ID.",
-      "An unrelated question yields no matching evidence.",
-      "Evaluation questions are separate from ranking logic.",
-      "The report separates retrieval accuracy from generated-answer quality.",
-      "No provider secret appears in source code or notebook output."
+      "Labels do not select preprocessing or cluster count.",
+      "Evaluation data uses training scaling without refitting.",
+      "The k-selection table and random seed are reported.",
+      "A geometric score is distinguished from external-label agreement.",
+      "The report checks multiple seeds and avoids treating cluster numbers as natural categories."
     ],
-    "extension": "Add semantic retrieval and reranking. If you connect a language model, evaluate citation support and resistance to instructions embedded in retrieved documents.",
-    "code": "import re\nnotes={\n 'gradient-descent':'gradient descent updates weights in the negative gradient direction with a learning rate',\n 'regularization':'regularization penalizes large weights and can reduce overfitting',\n 'pca':'principal component analysis pca projects data onto directions of high variance',\n 'evaluation':'precision counts correct positive predictions recall counts recovered actual positives'\n}\nstop={'the','a','an','is','in','of','how','what','does','to','and','can'}\ndef tokens(text):\n    return set(re.findall(r'[a-z]+',text.lower()))-stop\ndef retrieve(question):\n    ranked=sorted(((len(tokens(question)&tokens(text)),key) for key,text in notes.items()),reverse=True)\n    return ranked[0][1] if ranked[0][0]>0 else None\nquestions=[('How does gradient descent use learning rate?','gradient-descent'),('What reduces overfitting?','regularization'),('How does PCA preserve variance?','pca'),('How is recall calculated?','evaluation')]\ncorrect=0\nfor question,expected in questions:\n    source=retrieve(question)\n    correct += source==expected\n    print(question,'=>',source)\nprint('Top-1 source accuracy:',correct/len(questions))\nprint('Unrelated question:',retrieve('How should I bake a cake?'))\n"
+    "extension": "Compare the selected solution across at least five seeds and report adjusted Rand agreement between their assignments. Investigate how raw-unit versus standardized geometry changes the result.",
+    "code": "import numpy as np\nfrom sklearn.datasets import load_wine\nfrom sklearn.model_selection import train_test_split\nfrom sklearn.preprocessing import StandardScaler\nfrom sklearn.cluster import KMeans\nfrom sklearn.metrics import silhouette_score, adjusted_rand_score\n\ndata = load_wine()\nX_train, X_test, y_train, y_test = train_test_split(data.data, data.target, test_size=.25, random_state=42)\nscaler = StandardScaler().fit(X_train)\ntrain, test = scaler.transform(X_train), scaler.transform(X_test)\ncandidates = []\nfor k in range(2, 6):\n    model = KMeans(n_clusters=k, n_init=10, random_state=42).fit(train)\n    score = silhouette_score(train, model.labels_)\n    candidates.append((score, k, model))\n    print('Training k/silhouette:', k, round(score, 4))\n_, chosen_k, selected = max(candidates, key=lambda item: item[0])\nlabels = selected.predict(test)\nprint('Selected k:', chosen_k)\nprint('Held-out counts:', np.bincount(labels, minlength=chosen_k).tolist())\nif 1 < len(set(labels)) < len(labels):\n    print('Held-out silhouette:', round(silhouette_score(test, labels), 4))\nprint('External-label adjusted Rand audit:', round(adjusted_rand_score(y_test, labels), 4))\nprint('Centers in original units:', scaler.inverse_transform(selected.cluster_centers_).round(2))\n"
   }
 ]
